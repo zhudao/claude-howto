@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "database": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@bytebase/dbhub", "--dsn", "${DATABASE_URL}"]
+    }
+  }
+}

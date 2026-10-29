@@ -17,7 +17,7 @@ You **MUST** consider the user input before proceeding (if not empty). User may 
 
 ## Core Principles
 
-**LLMs are stateless**: CLAUDE.md is the only file automatically included in every conversation. It serves as the primary onboarding document for AI agents into your codebase.
+**LLMs are stateless**: CLAUDE.md is the main project file loaded into every conversation (alongside auto memory and unscoped rules). It serves as the primary onboarding document for AI agents into your codebase.
 
 ### The Golden Rules
 
@@ -93,7 +93,7 @@ For detailed build instructions, refer to `agent_docs/building_the_project.md`
 
 When creating or updating CLAUDE.md:
 
-1. **Target Length**: Under 300 lines (ideally under 100)
+1. **Target Length**: Keep it under 200 lines; shorter is better
 2. **No Style Rules**: Remove any linting/formatting instructions
 3. **No Task-Specific Instructions**: Move to separate files
 4. **No Code Snippets**: Use file references instead
@@ -150,7 +150,7 @@ Brief one-line description.
 
 Before finalizing, verify:
 
-- [ ] Under 300 lines (preferably under 100)
+- [ ] Kept under 200 lines; shorter is better
 - [ ] Every line applies to ALL sessions
 - [ ] No style/formatting rules
 - [ ] No code snippets (use file references)
@@ -193,10 +193,14 @@ Before finalizing, verify:
 
 If the user requests AGENTS.md creation/update:
 
-AGENTS.md is used for defining specialized agent behaviors. Unlike CLAUDE.md (which is for project context), AGENTS.md defines:
-- Custom agent roles and capabilities
-- Agent-specific instructions and constraints
-- Workflow definitions for multi-agent scenarios
+**Since v2.1.277, Claude Code reads `AGENTS.md` directly as project instructions** — but only when the working directory and every directory above it contain no `CLAUDE.md`, `.claude/CLAUDE.md`, or `CLAUDE.local.md`. `~/.claude/CLAUDE.md`, managed CLAUDE.md, and `.claude/rules/` do not count for that check and keep loading alongside. Which files are read is controlled by **Project instructions** in `/config`: `claude-md-or-agents-md` (default), `claude-md-and-agents-md`, `claude-md`, or `managed-only`. Where direct reading is unavailable — versions before v2.1.277 (before v2.1.281 on Bedrock/Vertex/Foundry, LLM gateways, or with telemetry disabled), or the first session after upgrading — fall back to importing it from CLAUDE.md with `@AGENTS.md`, or symlinking `CLAUDE.md` to it.
+
+AGENTS.md is a cross-tool project-context file — the same *category* of document as CLAUDE.md, not an agent-definition format. It exists so several coding agents can share one set of project conventions:
+- Build, test, and lint commands
+- Code style and architectural conventions
+- Repository layout and where things live
+
+Subagents are defined separately, in `.claude/agents/*.md` — not in AGENTS.md.
 
 Apply similar principles:
 - Keep focused and concise
@@ -210,3 +214,14 @@ Apply similar principles:
 - The system reminder tells Claude that CLAUDE.md "may or may not be relevant" - the more noise, the more it gets ignored
 - Monorepos benefit most from clear WHAT/WHY/HOW structure
 - Directory-specific CLAUDE.md files should be even more focused
+
+---
+
+**Last Updated**: October 18, 2026
+**Claude Code Version**: 2.1.302
+**Sources**:
+- https://code.claude.com/docs/en/skills
+- https://code.claude.com/docs/en/memory#agents-md
+- https://code.claude.com/docs/en/memory#when-agents-md-support-is-unavailable
+- https://code.claude.com/docs/en/memory
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

@@ -40,6 +40,13 @@ jobs:
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
+      # The Pele helper tests run the real Node.js protocol; under CI they
+      # fail instead of skipping when Node.js is missing.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Create venv and install dependencies
         run: |
           uv venv
@@ -88,11 +95,9 @@ jobs:
 
       - name: Ruff Format Check
         run: uv run ruff format --check scripts/
-        continue-on-error: true
 
       - name: Ruff Lint Check
         run: uv run ruff check scripts/
-        continue-on-error: true
 
   security:
     name: Security Scan
@@ -113,8 +118,7 @@ jobs:
           uv pip install "bandit[toml]"
 
       - name: Run Bandit Security Scan
-        run: uv run bandit -c pyproject.toml -r scripts/ --exclude scripts/tests/ -f json -o bandit-report.json
-        continue-on-error: true
+        run: uv run bandit -c scripts/pyproject.toml -r scripts/ --exclude scripts/tests/ -f json -o bandit-report.json
 
       - name: Upload security report
         uses: actions/upload-artifact@v4
@@ -143,14 +147,24 @@ jobs:
           uv pip install -r scripts/requirements-dev.txt mypy
 
       - name: Run mypy
-        run: uv run mypy scripts/ --ignore-missing-imports --no-implicit-optional
-        continue-on-error: true
+        run: uv run mypy scripts/ --config-file scripts/pyproject.toml
 
   build-epub:
-    name: Build EPUB Artifact
+    name: Build EPUB Artifact (${{ matrix.lang }})
     runs-on: ubuntu-latest
-    needs: [pytest, lint, security]
-    if: success()
+    needs: [pytest, lint, security, type-check]
+    if: ${{ !failure() && !cancelled() }}
+
+    # This job is the only gate on the full EPUB build, which stays out of
+    # pre-commit because it is slow (the pre-commit mermaid hooks already
+    # render every diagram with the same pinned Pele bundle). The matrix
+    # covers every language build_epub.py accepts, so a broken diagram in any
+    # tree fails here rather than at release time, and check_epub_diagrams.py
+    # proves the diagrams are embedded as real SVGs, not placeholders.
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [en, vi, zh, ja]
 
     steps:
       - name: Checkout code
@@ -167,24 +181,36 @@ jobs:
           uv venv
           uv pip install -r scripts/requirements-dev.txt
 
+      # Pele renders the diagrams and needs Node.js >= 20.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Build EPUB
-        run: uv run scripts/build_epub.py
+        run: uv run scripts/build_epub.py --lang ${{ matrix.lang }}
 
       - name: Verify EPUB Created
         run: |
-          if [ -f claude-howto-guide.epub ]; then
+          shopt -s nullglob
+          built=(claude-howto-guide*.epub)
+          if [ ${#built[@]} -gt 0 ]; then
             echo "✅ EPUB built successfully"
-            ls -lh claude-howto-guide.epub
+            ls -lh "${built[@]}"
           else
             echo "❌ EPUB file not found!"
             exit 1
           fi
 
+      - name: Verify EPUB diagrams
+        run: python3 scripts/check_epub_diagrams.py claude-howto-guide*.epub
+
       - name: Upload EPUB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: claude-howto-guide-epub
-          path: claude-howto-guide.epub
+          name: claude-howto-guide-epub-${{ matrix.lang }}
+          path: claude-howto-guide*.epub
+          if-no-files-found: error
           retention-days: 7
           compression-level: 0
 
@@ -212,7 +238,7 @@ jobs:
           echo "## Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- pytest-results-* (coverage and test results)" >> $GITHUB_STEP_SUMMARY
           echo "- bandit-security-report (security scan JSON)" >> $GITHUB_STEP_SUMMARY
-          echo "- claude-howto-guide-epub (built EPUB file)" >> $GITHUB_STEP_SUMMARY
+          echo "- claude-howto-guide-epub-* (built EPUB file, one per language)" >> $GITHUB_STEP_SUMMARY
 
       - name: Check if all tests passed
         if: |

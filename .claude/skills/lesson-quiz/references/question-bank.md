@@ -12,7 +12,7 @@
 - **Options**: A) Built-in, skills, plugin commands, MCP prompts | B) Built-in, custom, hook commands, API prompts | C) System, user, plugin, terminal commands | D) Core, extension, macro, script commands
 - **Correct**: A
 - **Explanation**: Claude Code has built-in commands (like /help, /compact), skills (SKILL.md files), plugin commands (namespaced plugin-name:command), and MCP prompts (/mcp__server__prompt).
-- **Review**: Types of Slash Commands section
+- **Review**: Overview section
 
 ### Q2
 - **Category**: practical
@@ -20,7 +20,7 @@
 - **Options**: A) Use `${args}` | B) Use `$ARGUMENTS` | C) Use `$@` | D) Use `$INPUT`
 - **Correct**: B
 - **Explanation**: `$ARGUMENTS` captures all text after the command name. For positional args, use `$0`, `$1`, etc.
-- **Review**: Argument handling section
+- **Review**: Arguments
 
 ### Q3
 - **Category**: conceptual
@@ -28,7 +28,7 @@
 - **Options**: A) The legacy command | B) The skill | C) Whichever was created first | D) Claude asks the user to choose
 - **Correct**: B
 - **Explanation**: Skills take precedence over legacy commands with the same name. The skill system supersedes the older command system.
-- **Review**: Skill precedence section
+- **Review**: Skill vs Command Conflict section
 
 ### Q4
 - **Category**: practical
@@ -36,7 +36,7 @@
 - **Options**: A) Use `$(command)` syntax | B) Use `!`command`` (backtick with !) syntax | C) Use `@shell:command` syntax | D) Use `{command}` syntax
 - **Correct**: B
 - **Explanation**: The `!`command`` syntax runs a shell command and injects its output into the skill prompt before Claude sees it.
-- **Review**: Dynamic context injection section
+- **Review**: Dynamic Context with Shell Commands
 
 ### Q5
 - **Category**: conceptual
@@ -44,7 +44,7 @@
 - **Options**: A) Prevents the skill from running entirely | B) Allows only the user to invoke it (Claude cannot auto-invoke) | C) Hides it from the /help menu | D) Disables the skill's AI processing
 - **Correct**: B
 - **Explanation**: `disable-model-invocation: true` means only the user can trigger the command via `/command-name`. Claude will never auto-invoke it, useful for skills with side effects like deployments.
-- **Review**: Controlling invocation section
+- **Review**: Frontmatter Reference section
 
 ### Q6
 - **Category**: practical
@@ -52,7 +52,7 @@
 - **Options**: A) `disable-model-invocation: true` | B) `user-invocable: false` | C) `hidden: true` | D) `auto-only: true`
 - **Correct**: B
 - **Explanation**: `user-invocable: false` hides the skill from the user's slash menu but allows Claude to invoke it automatically based on context.
-- **Review**: Invocation control matrix
+- **Review**: Frontmatter Reference section
 
 ### Q7
 - **Category**: practical
@@ -60,7 +60,7 @@
 - **Options**: A) `.claude/commands/deploy.md` | B) `.claude/skills/deploy/SKILL.md` | C) `.claude/skills/deploy.md` | D) `.claude/deploy/SKILL.md`
 - **Correct**: B
 - **Explanation**: Skills live in a directory under `.claude/skills/` with a `SKILL.md` file inside. The directory name matches the command name.
-- **Review**: Skill types and locations section
+- **Review**: Creating a Custom Command as a Skill section
 
 ### Q8
 - **Category**: conceptual
@@ -72,11 +72,11 @@
 
 ### Q9
 - **Category**: practical
-- **Question**: You want to restrict which tools a skill can use. Which frontmatter field do you add?
+- **Question**: You want a skill to use certain tools without asking for permission each time. Which frontmatter field do you add?
 - **Options**: A) `tools: [Read, Grep]` | B) `allowed-tools: [Read, Grep]` | C) `permissions: [Read, Grep]` | D) `restrict-tools: [Read, Grep]`
 - **Correct**: B
-- **Explanation**: The `allowed-tools` field in SKILL.md frontmatter scopes which tools the command can invoke.
-- **Review**: Frontmatter fields reference
+- **Explanation**: `allowed-tools` pre-approves the listed tools during the turn that invokes the skill, so Claude can use them without a permission prompt; the grant clears when you send your next message. It does not restrict which tools are available — to remove tools while a skill is active, use `disallowed-tools`.
+- **Review**: Frontmatter Reference
 
 ### Q10
 - **Category**: conceptual
@@ -92,27 +92,27 @@
 
 ### Q1
 - **Category**: conceptual
-- **Question**: How many levels does the Claude Code memory hierarchy have, and what has the highest priority?
-- **Options**: A) 5 levels, User Memory is highest | B) 7 levels, Managed Policy is highest | C) 3 levels, Project Memory is highest | D) 7 levels, Auto Memory is highest
+- **Question**: How do CLAUDE.md memory files relate to each other, and what has the highest authority?
+- **Options**: A) Higher tiers override lower tiers entirely | B) They are concatenated into context; Managed Policy loads first and can't be skipped with `claudeMdExcludes` | C) The most recently modified file wins | D) Project Memory has the highest priority
 - **Correct**: B
-- **Explanation**: The hierarchy has 7 levels: Managed Policy > Project Memory > Project Rules > User Memory > User Rules > Local Project Memory > Auto Memory. Managed Policy (set by admins) has the highest priority.
+- **Explanation**: CLAUDE.md files are concatenated into context rather than overriding each other — load order sets position in context, not precedence. Managed Policy (admin-managed) loads first and can't be skipped with `claudeMdExcludes`, but a session started with CLAUDE.md loading turned off doesn't load it either — enforce hard rules with managed `permissions.deny`. Auto memory is a separate mechanism.
 - **Review**: Memory hierarchy section
 
 ### Q2
 - **Category**: practical
 - **Question**: How do you quickly add a new rule to memory during a conversation?
-- **Options**: A) Type `/memory add "rule text"` | B) Prefix your message with `#` (e.g., `# always use TypeScript`) | C) Type `/rule "rule text"` | D) Use `@add-memory "rule text"`
-- **Correct**: B
-- **Explanation**: The `#` prefix pattern allows quick single-rule additions during conversation. Claude will ask which memory level to save it to.
-- **Review**: Quick memory updates section
+- **Options**: A) Use the `/memory` slash command or ask conversationally | B) Prefix your message with `#` (e.g., `# always use TypeScript`) | C) Type `/rule "rule text"` | D) Use `@add-memory "rule text"`
+- **Correct**: A
+- **Explanation**: Use `/memory` to open your CLAUDE.md and auto memory files in your editor, or ask Claude conversationally. Asking Claude to "remember" something (e.g., "remember that we always use TypeScript strict mode") saves it to auto memory; to put it in CLAUDE.md instead, say "add this to CLAUDE.md". The `#` prefix was discontinued and no longer works.
+- **Review**: Quick memory updates section in README
 
 ### Q3
 - **Category**: conceptual
 - **Question**: What is the maximum depth for `@path/to/file` imports in CLAUDE.md?
-- **Options**: A) 3 levels deep | B) 5 levels deep | C) 10 levels deep | D) Unlimited
+- **Options**: A) 3 levels deep | B) 4 levels deep | C) 10 levels deep | D) Unlimited
 - **Correct**: B
-- **Explanation**: The `@import` syntax supports recursive imports up to a maximum depth of 5 to prevent infinite loops.
-- **Review**: Import syntax section
+- **Explanation**: The `@path` import syntax supports recursive imports up to a maximum depth of 4 hops to prevent infinite loops.
+- **Review**: The /memory Command section (Import features)
 
 ### Q4
 - **Category**: practical
@@ -127,7 +127,7 @@
 - **Question**: How many lines of Auto Memory's MEMORY.md are loaded at session start?
 - **Options**: A) All lines | B) First 100 lines | C) First 200 lines | D) First 500 lines
 - **Correct**: C
-- **Explanation**: The first 200 lines of MEMORY.md are auto-loaded into context at session start. Topic files referenced from MEMORY.md are loaded on demand.
+- **Explanation**: The first 200 lines of MEMORY.md — or the first 25 KB, whichever comes first — are auto-loaded into context at session start. Topic files referenced from MEMORY.md are loaded on demand.
 - **Review**: Auto Memory section
 
 ### Q6
@@ -136,14 +136,14 @@
 - **Options**: A) `~/.claude/CLAUDE.md` | B) `CLAUDE.local.md` | C) `.claude/rules/personal.md` | D) `.claude/memory/personal.md`
 - **Correct**: B
 - **Explanation**: `CLAUDE.local.md` in the project root is for personal project-specific preferences. It should be git-ignored.
-- **Review**: Memory locations comparison
+- **Review**: Memory Locations Table
 
 ### Q7
 - **Category**: conceptual
 - **Question**: What does the `/init` command do?
 - **Options**: A) Initializes a new Claude Code project from scratch | B) Generates a template CLAUDE.md based on your project structure | C) Resets all memory to defaults | D) Creates a new session
 - **Correct**: B
-- **Explanation**: `/init` analyzes your project and generates a template CLAUDE.md with suggested rules and standards. It's a one-time bootstrapping tool.
+- **Explanation**: `/init` analyzes your project and generates a template CLAUDE.md with suggested rules and standards. Re-running it on an existing CLAUDE.md suggests improvements.
 - **Review**: /init command section
 
 ### Q8
@@ -152,22 +152,22 @@
 - **Options**: A) Delete the ~/.claude/projects directory | B) Set `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` | C) Add `auto-memory: false` to CLAUDE.md | D) Use `/memory disable auto`
 - **Correct**: B
 - **Explanation**: Setting `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` disables auto memory. Value `0` forces it on. Unset = default on.
-- **Review**: Auto Memory configuration section
+- **Review**: Turning Auto Memory On or Off
 
 ### Q9
 - **Category**: conceptual
 - **Question**: Can a lower-priority memory tier override rules from a higher-priority tier?
-- **Options**: A) Yes, the most recent rule always wins | B) No, higher tiers always take precedence | C) Yes, if the lower tier uses the `!important` flag | D) It depends on the rule type
+- **Options**: A) Yes, the most recent rule always wins | B) No — CLAUDE.md files are concatenated into context, not overridden; load order sets position, not precedence | C) Yes, if the lower tier uses the `!important` flag | D) It depends on the rule type
 - **Correct**: B
-- **Explanation**: Memory precedence flows downward from Managed Policy. Lower tiers (like Auto Memory) cannot override higher tiers (like Project Memory).
+- **Explanation**: CLAUDE.md files (user, project, local, rules) are concatenated into context rather than overriding each other — later files appear later in context, not "instead of" earlier ones. Only Managed Policy is special: it loads first and can't be skipped with `claudeMdExcludes`, but a session started with CLAUDE.md loading turned off doesn't load it either — enforce hard rules with managed `permissions.deny`. Auto memory is a separate mechanism, not part of the concatenation order.
 - **Review**: Memory hierarchy section
 
 ### Q10
 - **Category**: practical
 - **Question**: You work across two repositories and want Claude to load CLAUDE.md from both. What flag do you use?
-- **Options**: A) `--multi-repo` | B) `--add-dir /path/to/other` | C) `--include /path/to/other` | D) `--merge-context /path/to/other`
+- **Options**: A) `claude --multi-repo /path/to/other` | B) `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir /path/to/other` | C) `claude --add-dir /path/to/other` on its own | D) `claude --include /path/to/other`
 - **Correct**: B
-- **Explanation**: The `--add-dir` flag loads CLAUDE.md from additional directories, allowing multi-repo context.
+- **Explanation**: `--add-dir` on its own only grants file access to the extra directory — its CLAUDE.md is not loaded by default. Setting `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1` makes Claude Code also load CLAUDE.md from directories added with `--add-dir`.
 - **Review**: Additional directories section
 
 ---
@@ -180,15 +180,15 @@
 - **Options**: A) Metadata, instructions, resources | B) Name, body, attachments | C) Header, content, scripts | D) Summary, details, data
 - **Correct**: A
 - **Explanation**: Level 1: Metadata (~100 tokens, always loaded), Level 2: SKILL.md body (<5k tokens, loaded on trigger), Level 3: Bundled resources (scripts/references/assets, loaded on demand).
-- **Review**: Progressive disclosure architecture section
+- **Review**: How Skills Work: Progressive Disclosure
 
 ### Q2
 - **Category**: practical
 - **Question**: What is the most important factor for a skill to be auto-invoked by Claude?
 - **Options**: A) The skill's file name | B) The `description` field in frontmatter with when-to-use keywords | C) The skill's directory location | D) The `auto-invoke: true` frontmatter field
 - **Correct**: B
-- **Explanation**: Claude decides whether to auto-invoke a skill based solely on its `description` field. It must include specific trigger phrases and scenarios.
-- **Review**: Auto-invocation section
+- **Explanation**: Claude decides whether to auto-invoke a skill based on its `description` (plus optional `when_to_use`). It must include specific trigger phrases and scenarios.
+- **Review**: Controlling Skill Invocation section
 
 ### Q3
 - **Category**: conceptual
@@ -196,7 +196,7 @@
 - **Options**: A) 100 lines | B) 250 lines | C) 500 lines | D) 1000 lines
 - **Correct**: C
 - **Explanation**: SKILL.md should be kept under 500 lines. Larger reference material belongs in `references/` subdirectory files.
-- **Review**: Content guidelines section
+- **Review**: Keep SKILL.md Under 500 Lines section
 
 ### Q4
 - **Category**: practical
@@ -209,10 +209,10 @@
 ### Q5
 - **Category**: conceptual
 - **Question**: What is the approximate context budget allocated to skill metadata (Level 1)?
-- **Options**: A) 0.5% of context window | B) 2% of context window | C) 5% of context window | D) 10% of context window
+- **Options**: A) 0.5% of context window | B) 1% of context window | C) 5% of context window | D) 10% of context window
 - **Correct**: B
-- **Explanation**: Skill metadata occupies about 2% of the context window (fallback: 16,000 characters). This is configurable with `SLASH_COMMAND_TOOL_CHAR_BUDGET`.
-- **Review**: Context budget section
+- **Explanation**: Skill metadata occupies about 1% of the context window (fallback: 8,000 characters). This is configurable with `SLASH_COMMAND_TOOL_CHAR_BUDGET` or the `skillListingBudgetFraction` setting.
+- **Review**: the "Description budget" paragraph under Automatic Discovery
 
 ### Q6
 - **Category**: practical
@@ -232,10 +232,10 @@
 
 ### Q8
 - **Category**: practical
-- **Question**: What characters are allowed in the `name` field of a skill's frontmatter?
+- **Question**: What characters are allowed in the `name` field of a skill's frontmatter for a skill you plan to share via claude.ai or the Skills API (Agent Skills spec)?
 - **Options**: A) Any characters | B) Lowercase letters, numbers, and hyphens only (max 64 chars) | C) Letters and underscores | D) Alphanumeric only
 - **Correct**: B
-- **Explanation**: The name must be kebab-case (lowercase, hyphens), max 64 characters, and cannot contain "anthropic" or "claude".
+- **Explanation**: The name must be kebab-case (lowercase, hyphens), max 64 characters. `name` is itself optional — if omitted it defaults to the skill's directory name — but when supplied it must follow these rules. In Claude Code, the `anthropic-skills` name and namespace are reserved for skills synced from claude.ai, so a skill with that name doesn't load; the broader ban on "anthropic" or "claude" applies to claude.ai skill uploads and the Skills API. Claude Code itself (v2.1.299) refuses only names that contain hidden, direction-changing or blank-like characters, `<` or `>`, or that are over 256 characters.
 - **Review**: SKILL.md format section
 
 ### Q9
@@ -244,7 +244,7 @@
 - **Options**: A) User > Project > Enterprise | B) Enterprise > Personal > Project (plugin uses namespace) | C) Project > User > Enterprise | D) Alphabetical order
 - **Correct**: B
 - **Explanation**: Priority order is: Enterprise > Personal > Project. Plugin skills use a namespace (plugin-name:skill) so they don't conflict.
-- **Review**: Skill types and locations section
+- **Review**: Skill Types & Locations
 
 ### Q10
 - **Category**: practical
@@ -252,7 +252,7 @@
 - **Options**: A) Set `user-invocable: false` | B) Set `disable-model-invocation: true` | C) Remove the description field | D) Set `auto-invoke: false`
 - **Correct**: B
 - **Explanation**: `disable-model-invocation: true` prevents Claude from auto-invoking but keeps the skill available in the user's `/` menu for manual use.
-- **Review**: Controlling invocation section
+- **Review**: Controlling Skill Invocation
 
 ---
 
@@ -269,25 +269,25 @@
 ### Q2
 - **Category**: practical
 - **Question**: What is the priority order for agent definitions?
-- **Options**: A) Project > User > CLI | B) CLI > User > Project | C) User > Project > CLI | D) They all have equal priority
+- **Options**: A) Project > User > CLI | B) CLI > Project > User | C) User > Project > CLI | D) They all have equal priority
 - **Correct**: B
-- **Explanation**: CLI-defined agents (`--agents` flag) override User-level (`~/.claude/agents/`), which override Project-level (`.claude/agents/`).
+- **Explanation**: Full order is managed settings > `--agents` flag > project (`.claude/agents/`) > user (`~/.claude/agents/`) > plugin. Of the options listed, CLI > Project > User is the correct relative ordering.
 - **Review**: File locations section
 
 ### Q3
 - **Category**: conceptual
-- **Question**: Which built-in subagent uses the Haiku model and is optimized for read-only codebase exploration?
+- **Question**: Which built-in subagent is optimized for read-only codebase exploration?
 - **Options**: A) general-purpose | B) Plan | C) Explore | D) Bash
 - **Correct**: C
-- **Explanation**: The Explore subagent uses Haiku for fast, read-only codebase exploration. It supports three thoroughness levels: quick, medium, very thorough.
+- **Explanation**: The Explore subagent is the read-only codebase search agent. Since v2.1.198 it inherits the session model, capped at Opus on the Claude API — `model: haiku` is opt-in, not the default. It supports three thoroughness levels: quick, medium, very thorough.
 - **Review**: Built-in subagents section
 
 ### Q4
 - **Category**: practical
 - **Question**: How do you restrict which subagents a coordinator agent can spawn?
-- **Options**: A) Use `allowed-agents:` field | B) Use `Task(agent_name)` syntax in the `tools` field | C) Set `spawn-limit: 2` | D) Use `restrict-agents: [name1, name2]`
+- **Options**: A) Use `allowed-agents:` field | B) Use `Agent(agent_name)` syntax in the `tools` field | C) Set `spawn-limit: 2` | D) Use `restrict-agents: [name1, name2]`
 - **Correct**: B
-- **Explanation**: Adding `Task(worker, researcher)` in the tools field creates an allowlist — the agent can only spawn subagents named "worker" or "researcher".
+- **Explanation**: For an agent running as the main thread with `claude --agent`, `tools: Agent(worker, researcher)` creates an allowlist — it can only spawn subagents named "worker" or "researcher". `Task(...)` still works as an alias (the Task tool was renamed Agent in v2.1.63).
 - **Review**: Restrict spawnable subagents section
 
 ### Q5
@@ -300,10 +300,10 @@
 
 ### Q6
 - **Category**: practical
-- **Question**: How do you make a subagent run in the background?
+- **Question**: How do you force a subagent to always run in the background (never inline)?
 - **Options**: A) Set `background: true` in the agent config | B) Use `async: true` in the agent config | C) Press Ctrl+D after starting it | D) Use `--background` CLI flag
 - **Correct**: A
-- **Explanation**: `background: true` in the agent configuration makes the subagent always run as a background task. Users can also use Ctrl+B to send a foreground task to background.
+- **Explanation**: `background: true` keeps this subagent in the background even when Claude asks to wait for it. With nothing configured, subagents Claude spawns from the main conversation already start in the background. In `claude -p` and the Agent SDK, Claude can still choose to wait for one. In interactive terminal, VS Code and desktop sessions, Claude can't wait while fork mode is on, which is the default (v2.1.302; v2.1.232 in the terminal); set `CLAUDE_CODE_FORK_SUBAGENT=0` to let it wait. Users can also press Ctrl+B to send a running foreground task to the background.
 - **Review**: Background subagents section
 
 ### Q7
@@ -311,7 +311,7 @@
 - **Question**: What does the `memory` field with scope `project` do for a subagent?
 - **Options**: A) Gives read access to the project CLAUDE.md | B) Creates a persistent memory directory scoped to the current project | C) Shares the main agent's conversation history | D) Loads the project's git history
 - **Correct**: B
-- **Explanation**: The `memory` field creates a persistent directory for the subagent. Scope `project` means the memory is tied to the current project. The first 200 lines of the agent's MEMORY.md auto-load.
+- **Explanation**: The `memory` field creates a persistent directory for the subagent. Scope `project` means the memory is tied to the current project. The first 200 lines or 25KB of the agent's MEMORY.md, whichever comes first, auto-load.
 - **Review**: Persistent memory section
 
 ### Q8
@@ -325,17 +325,17 @@
 ### Q9
 - **Category**: conceptual
 - **Question**: What are the valid `permissionMode` values for a subagent?
-- **Options**: A) read, write, admin | B) default, acceptEdits, bypassPermissions, plan, dontAsk, auto | C) safe, normal, dangerous | D) restricted, standard, elevated
+- **Options**: A) read, write, admin | B) manual, acceptEdits, bypassPermissions, plan, dontAsk, auto | C) safe, normal, dangerous | D) restricted, standard, elevated
 - **Correct**: B
-- **Explanation**: Subagents support six permission modes: default (prompts for everything), acceptEdits (auto-accepts file edits), bypassPermissions (skips all), plan (read-only), dontAsk (auto-denies unless pre-approved), auto (background classifier decides).
+- **Explanation**: Subagents support six permission modes: manual (runs reads without asking and prompts for everything else — shown as Manual; its config value is `default`, and manual is accepted as an alias since v2.1.200), acceptEdits (auto-accepts file edits), bypassPermissions (skips all), plan (read-only), dontAsk (auto-denies unless pre-approved), auto (background classifier decides).
 - **Review**: Configuration fields section
 
 ### Q10
 - **Category**: practical
 - **Question**: How do you resume a subagent that returned an agentId from a previous run?
-- **Options**: A) Use `/resume agent-id` | B) Pass the `resume` parameter with the agentId when calling Task tool | C) Use `claude -r agent-id` | D) Subagents cannot be resumed
+- **Options**: A) Use `/resume agent-id` | B) Ask Claude to resume it — Claude messages the subagent with the SendMessage tool, using its agent ID or name | C) Use `claude -r agent-id` | D) Subagents cannot be resumed
 - **Correct**: B
-- **Explanation**: Subagents can be resumed by passing the `resume` parameter with the previously returned agentId, continuing with full context preserved.
+- **Explanation**: Each invocation starts a new instance. To continue earlier work, ask Claude to resume the subagent: Claude uses the SendMessage tool with the agent's ID (or its name, if the session started with agent teams enabled and Claude named it), and the subagent resumes with its full conversation history. The built-in Explore and Plan agents are one-shot and can't be resumed.
 - **Review**: Resumable agents section
 
 ---
@@ -344,26 +344,26 @@
 
 ### Q1
 - **Category**: conceptual
-- **Question**: What are the three MCP transport protocols, and which is recommended?
-- **Options**: A) HTTP (recommended), Stdio, SSE (deprecated) | B) WebSocket (recommended), REST, gRPC | C) TCP, UDP, HTTP | D) Stdio (recommended), HTTP, SSE
+- **Question**: What are the four MCP transport protocols, and which is recommended?
+- **Options**: A) HTTP (recommended), Stdio, SSE (deprecated), WebSocket (`ws`) | B) REST (recommended), GraphQL, gRPC, Thrift | C) TCP, UDP, HTTP | D) Stdio (recommended), HTTP, SSE
 - **Correct**: A
-- **Explanation**: HTTP is recommended for remote servers. Stdio is for local processes (most common currently). SSE is deprecated but still supported.
-- **Review**: Transport protocols section
+- **Explanation**: HTTP is recommended for remote servers. Stdio is for local processes (most common currently). SSE is deprecated but still supported. WebSocket (`type: "ws"`) holds a persistent bidirectional connection for servers that push events unprompted; it is added with `claude mcp add-json` or `.mcp.json`, not with `--transport`, and supports header-only auth.
+- **Review**: MCP Installation Methods section
 
 ### Q2
 - **Category**: practical
 - **Question**: How do you add a GitHub MCP server via CLI?
-- **Options**: A) `claude mcp install github` | B) `claude mcp add --transport http github https://api.github.com/mcp` | C) `claude plugin add github-mcp` | D) `claude connect github`
+- **Options**: A) `claude mcp install github` | B) `claude mcp add --transport http github https://api.githubcopilot.com/mcp/` | C) `claude plugin add github-mcp` | D) `claude connect github`
 - **Correct**: B
-- **Explanation**: Use `claude mcp add` with `--transport` flag, a name, and the server URL. For stdio: `claude mcp add github -- npx -y @modelcontextprotocol/server-github`.
+- **Explanation**: Use `claude mcp add` with the `--transport` flag, a name, and the server URL. GitHub's remote server also needs an auth header: `claude mcp add --transport http github https://api.githubcopilot.com/mcp/ --header "Authorization: Bearer YOUR_GITHUB_PAT"`.
 - **Review**: MCP configuration management section
 
 ### Q3
 - **Category**: conceptual
-- **Question**: What happens when MCP tool descriptions exceed 10% of the context window?
-- **Options**: A) They are truncated | B) Tool Search auto-enables to dynamically select relevant tools | C) Claude shows an error | D) Extra tools are disabled
+- **Question**: With `ENABLE_TOOL_SEARCH=auto`, what happens when MCP tool definitions reach 10% of the context window?
+- **Options**: A) They are truncated | B) Tool search kicks in: MCP tools are deferred and discovered on demand | C) Claude shows an error | D) Extra tools are disabled
 - **Correct**: B
-- **Explanation**: MCP Tool Search auto-enables when tools exceed 10% of context. It requires Sonnet 4 or Opus 4 minimum (Haiku not supported).
+- **Explanation**: By default (`ENABLE_TOOL_SEARCH` unset) tool search is already on and all MCP tools are deferred. `auto` is threshold mode: tools load upfront until their definitions reach 10% of the context window, then all are deferred (`auto:N` sets a custom percentage). Tool search needs a model that supports `tool_reference` blocks: Opus 4, Sonnet 4, Haiku 4.5 and later. Tool search is on by default, including behind a custom `ANTHROPIC_BASE_URL` gateway since v2.1.304 (since v2.1.305 a gateway that rejects it with a 400 or 422 is retried without it); set `ENABLE_TOOL_SEARCH=false` to load every tool upfront.
 - **Review**: MCP Tool Search section
 
 ### Q4
@@ -371,7 +371,7 @@
 - **Question**: How do you use environment variable fallbacks in MCP config?
 - **Options**: A) `${VAR || "default"}` | B) `${VAR:-default}` | C) `${VAR:default}` | D) `${VAR ? "default"}`
 - **Correct**: B
-- **Explanation**: `${VAR:-default}` provides a fallback value if the environment variable is not set. `${VAR}` without fallback will error if not set.
+- **Explanation**: `${VAR:-default}` provides a fallback value if the environment variable is not set. If `VAR` is unset and has no default, the server still loads with the literal `${VAR}` text, and `claude mcp list` and `/mcp` warn about the missing variable.
 - **Review**: Environment variable expansion section
 
 ### Q5
@@ -403,7 +403,7 @@
 - **Question**: What is the default maximum output size for MCP tools?
 - **Options**: A) 5,000 tokens | B) 10,000 tokens | C) 25,000 tokens | D) 50,000 tokens
 - **Correct**: C
-- **Explanation**: Default max is 25,000 tokens (`MAX_MCP_OUTPUT_TOKENS`). A warning appears at 10k tokens. Disk persistence caps at 50k characters.
+- **Explanation**: Default max is 25,000 tokens (`MAX_MCP_OUTPUT_TOKENS`). A warning appears at 10k tokens. Text results over 50,000 characters are saved to a file.
 - **Review**: MCP Output Limits section
 
 ### Q9
@@ -428,10 +428,10 @@
 
 ### Q1
 - **Category**: conceptual
-- **Question**: What are the four types of hooks in Claude Code?
-- **Options**: A) Pre, Post, Error, and Filter hooks | B) Command, HTTP, Prompt, and Agent hooks | C) Before, After, Around, and Through hooks | D) Input, Output, Filter, and Transform hooks
+- **Question**: What are the five types of hooks in Claude Code?
+- **Options**: A) Pre, Post, Error, Filter, and Transform hooks | B) Command, HTTP, MCP Tool, Prompt, and Agent hooks | C) Before, After, Around, Through, and Beside hooks | D) Input, Output, Filter, Transform, and Validate hooks
 - **Correct**: B
-- **Explanation**: Command hooks run shell scripts, HTTP hooks call webhook endpoints, Prompt hooks use single-turn LLM evaluation, and Agent hooks use subagent-based verification.
+- **Explanation**: Command hooks run shell scripts, HTTP hooks call webhook endpoints, MCP Tool hooks invoke an MCP tool, Prompt hooks use single-turn LLM evaluation, and Agent hooks use subagent-based verification. Agent hooks are experimental and may change.
 - **Review**: Hook types section
 
 ### Q2
@@ -439,7 +439,7 @@
 - **Question**: A hook script exits with code 2. What happens?
 - **Options**: A) Non-blocking warning shown | B) Blocking error — stderr is shown as an error to Claude, tool use is prevented | C) Hook is retried | D) Session ends
 - **Correct**: B
-- **Explanation**: Exit code 0 = success/continue, exit code 2 = blocking error (stderr shown as error), any other non-zero = non-blocking (stderr in verbose only).
+- **Explanation**: Exit code 0 = success/continue, exit code 2 = blocking error (stderr shown as error), any other non-zero = non-blocking error (a `<hook name> hook error` notice with the first line of stderr appears in the transcript, and the action goes ahead). Since v2.1.295, setting `"onFailure": "block"` on a command or HTTP hook makes such failures block like exit 2.
 - **Review**: Exit codes section
 
 ### Q3
@@ -448,30 +448,30 @@
 - **Options**: A) `tool_name` and `tool_output` | B) `session_id`, `tool_name`, `tool_input`, `hook_event_name`, `cwd`, and more | C) Only `tool_name` | D) The full conversation history
 - **Correct**: B
 - **Explanation**: Hooks receive a JSON object on stdin with: session_id, transcript_path, hook_event_name, tool_name, tool_input, tool_use_id, cwd, and permission_mode.
-- **Review**: JSON input structure section
+- **Review**: JSON Input (via stdin)
 
 ### Q4
 - **Category**: practical
 - **Question**: How can a PreToolUse hook modify the tool's input parameters before execution?
 - **Options**: A) Return modified JSON on stderr | B) Return JSON with `updatedInput` field on stdout (exit code 0) | C) Write to a temp file | D) Hooks cannot modify inputs
 - **Correct**: B
-- **Explanation**: A PreToolUse hook can output JSON with `"updatedInput": {...}` on stdout (with exit 0) to modify the tool's parameters before Claude uses them.
-- **Review**: PreToolUse output section
+- **Explanation**: A PreToolUse hook can output JSON with `"updatedInput": {...}` on stdout (with exit 0) to modify the tool's parameters before Claude uses them. `updatedInput` goes under `hookSpecificOutput` and replaces the whole input object; since v2.1.300 it is validated like Claude's own input, so unknown keys are dropped and input the tool rejects denies the call.
+- **Review**: PreToolUse section
 
 ### Q5
 - **Category**: conceptual
 - **Question**: Which hook event supports `CLAUDE_ENV_FILE` for persisting environment variables into the session?
 - **Options**: A) PreToolUse | B) UserPromptSubmit | C) SessionStart | D) All events
 - **Correct**: C
-- **Explanation**: Only SessionStart hooks can use `CLAUDE_ENV_FILE` to persist environment variables into the session.
+- **Explanation**: `CLAUDE_ENV_FILE` is available to SessionStart, Setup, CwdChanged, and FileChanged hooks, which use it to persist environment variables into the session. Of the options listed, SessionStart is the one that supports it — PreToolUse and UserPromptSubmit do not, and it is not available to all events.
 - **Review**: SessionStart section
 
 ### Q6
 - **Category**: practical
 - **Question**: You want a hook that only runs once when a skill is first loaded, not on every tool call. What field do you add?
-- **Options**: A) `run-once: true` | B) `once: true` in the component hook definition | C) `single: true` | D) `max-runs: 1`
+- **Options**: A) `run-once: true` | B) `once: true` on a hook in the skill's frontmatter | C) `single: true` | D) `max-runs: 1`
 - **Correct**: B
-- **Explanation**: Component-scoped hooks (defined in SKILL.md or agent frontmatter) support `once: true` to run only on first activation.
+- **Explanation**: Hooks declared in a skill's frontmatter support `once: true` — Claude Code removes the hook after its first successful run (a run that fails, blocks, or times out leaves it in place). `once` is honored only in skill frontmatter.
 - **Review**: Component-scoped hooks section
 
 ### Q7
@@ -493,17 +493,17 @@
 ### Q9
 - **Category**: conceptual
 - **Question**: How many hook events does Claude Code support in total?
-- **Options**: A) 10 | B) 16 | C) 25 | D) 30
+- **Options**: A) 16 | B) 25 | C) 33 | D) 40
 - **Correct**: C
-- **Explanation**: Claude Code supports 25 hook events: PreToolUse, PostToolUse, PostToolUseFailure, UserPromptSubmit, Stop, StopFailure, SubagentStop, SubagentStart, PermissionRequest, Notification, PreCompact, PostCompact, SessionStart, SessionEnd, WorktreeCreate, WorktreeRemove, ConfigChange, CwdChanged, FileChanged, TeammateIdle, TaskCompleted, TaskCreated, Elicitation, ElicitationResult, InstructionsLoaded.
+- **Explanation**: Claude Code supports 33 hook events. They fall into four groups: session lifecycle (`SessionStart`, `Setup`, `SessionEnd`), prompt and message handling (`UserPromptSubmit`, `UserPromptExpansion`, `MessageDisplay`), tool use and permissions (`PreToolUse`, `PostToolUse`, `PermissionRequest`, …), and agent, task, and environment coordination (`SubagentStart`, `TaskCreated`, `CwdChanged`, `WorktreeCreate`, `PreModelSwitch`, `PostModelSwitch`, …).
 - **Review**: Hook events table
 
 ### Q10
 - **Category**: practical
 - **Question**: You want to debug why a hook isn't firing. What's the best approach?
-- **Options**: A) Add print statements to the hook script | B) Use `--debug` flag and `Ctrl+O` for verbose mode | C) Check the system log | D) Hooks don't have debugging tools
+- **Options**: A) Add print statements to the hook script | B) Use the `--debug` flag and `Ctrl+O` to open the transcript viewer | C) Check the system log | D) Hooks don't have debugging tools
 - **Correct**: B
-- **Explanation**: The `--debug` flag and `Ctrl+O` verbose mode show hook execution details including which hooks fire, their inputs, and outputs.
+- **Explanation**: `claude --debug` (or `--debug-file <path>`, or `/debug` mid-session) logs hook runs to the debug log, including which hooks fire, their inputs, and outputs; `Ctrl+O` opens the transcript view to see hook outcomes.
 - **Review**: Debugging section
 
 ---
@@ -515,15 +515,15 @@
 - **Question**: What is the core manifest file for a plugin and where does it live?
 - **Options**: A) `plugin.yaml` in the root directory | B) `.claude-plugin/plugin.json` | C) `package.json` with a "claude" key | D) `.claude/plugin.md`
 - **Correct**: B
-- **Explanation**: The plugin manifest lives at `.claude-plugin/plugin.json` with required fields: name, description, version, author.
+- **Explanation**: The plugin manifest lives at `.claude-plugin/plugin.json`. The manifest is optional; when present, `name` (kebab-case identifier) is its only required key; `description`, `version`, `author`, `homepage`, `repository` and `license` are optional metadata.
 - **Review**: Plugin definition structure section
 
 ### Q2
 - **Category**: practical
-- **Question**: How do you test a plugin locally before publishing?
+- **Question**: How do you load a plugin from a local directory so you can try it in a session before publishing?
 - **Options**: A) Use `/plugin test ./my-plugin` | B) Use `claude --plugin-dir ./my-plugin` | C) Use `claude plugin validate ./my-plugin` | D) Copy it to ~/.claude/plugins/
 - **Correct**: B
-- **Explanation**: The `--plugin-dir` flag loads a plugin from a local directory for testing. It's repeatable for loading multiple plugins.
+- **Explanation**: The `--plugin-dir` flag loads a plugin from a local directory for testing. It's repeatable for loading multiple plugins. `claude plugin validate ./my-plugin` checks the manifest and components but doesn't load the plugin into a session.
 - **Review**: Testing section
 
 ### Q3
@@ -532,7 +532,7 @@
 - **Options**: A) `$PLUGIN_HOME` | B) `${CLAUDE_PLUGIN_ROOT}` | C) `$PLUGIN_DIR` | D) `${CLAUDE_PLUGIN_PATH}`
 - **Correct**: B
 - **Explanation**: `${CLAUDE_PLUGIN_ROOT}` resolves to the plugin's installed directory, enabling portable path references in hooks and MCP configs.
-- **Review**: Plugin directory structure section
+- **Review**: Plugin-Provided MCP Servers section in Lesson 05 (MCP)
 
 ### Q4
 - **Category**: practical
@@ -540,22 +540,22 @@
 - **Options**: A) `/check-security` | B) `/pr-review:check-security` | C) `/plugin pr-review check-security` | D) `/pr-review/check-security`
 - **Correct**: B
 - **Explanation**: Plugin commands use a `plugin-name:command-name` namespace to avoid conflicts with user commands and other plugins.
-- **Review**: Plugin commands section
+- **Review**: Plugin Commands section in Lesson 01 (Slash Commands)
 
 ### Q5
 - **Category**: conceptual
 - **Question**: Which components can a plugin bundle?
-- **Options**: A) Only commands and settings | B) Commands, agents, skills, hooks, MCP servers, LSP config, settings, templates, scripts | C) Only commands, hooks, and MCP servers | D) Only skills and agents
+- **Options**: A) Only commands and settings | B) Skills, agents, commands, hooks, MCP servers, LSP config, settings, templates, scripts | C) Only commands, hooks, and MCP servers | D) Only skills and agents
 - **Correct**: B
-- **Explanation**: Plugins can bundle: commands/, agents/, skills/, hooks/hooks.json, .mcp.json, .lsp.json, settings.json, templates/, scripts/, docs/, tests/.
-- **Review**: Plugin directory structure section
+- **Explanation**: Plugins can bundle: skills/, agents/, commands/, hooks/hooks.json, .mcp.json, .lsp.json, settings.json, templates/, scripts/, docs/, tests/. Note that `commands/` is legacy — official guidance is to use `skills/` for new plugins, though existing `commands/` directories keep working.
+- **Review**: Plugin Structure Example section
 
 ### Q6
 - **Category**: practical
 - **Question**: How do you install a plugin from GitHub?
-- **Options**: A) `claude plugin add github:username/repo` | B) `/plugin install github:username/repo` | C) `npm install @claude/username-repo` | D) `git clone` then `claude plugin register`
+- **Options**: A) `claude plugin add github:username/repo` | B) `/plugin marketplace add username/repo`, then `/plugin install plugin-name@marketplace-name` | C) `npm install @claude/username-repo` | D) `git clone` then `claude plugin register`
 - **Correct**: B
-- **Explanation**: Use `/plugin install github:username/repo` to install directly from a GitHub repository.
+- **Explanation**: Add the GitHub repo as a marketplace with `/plugin marketplace add username/repo`, then install with `/plugin install plugin-name@marketplace-name`. You can also do both in one step: `/plugin install plugin-name --marketplace username/repo` inside a session (v2.1.275+), or `claude plugin install plugin-name --marketplace username/repo` from your shell (v2.1.292+). There is no `github:` install form.
 - **Review**: Installation methods section
 
 ### Q7
@@ -569,10 +569,10 @@
 ### Q8
 - **Category**: practical
 - **Question**: How do you manage plugin lifecycle (enable/disable/update)?
-- **Options**: A) Edit a config file manually | B) Use `/plugin enable`, `/plugin disable`, `/plugin update plugin-name` | C) Use `claude plugin-manager` | D) Reinstall the plugin
+- **Options**: A) Edit a config file manually | B) Use `/plugin enable`, `/plugin disable`, `claude plugin update <name>` | C) Use `claude plugin-manager` | D) Reinstall the plugin
 - **Correct**: B
-- **Explanation**: Claude Code provides slash commands for full lifecycle management: enable, disable, update, uninstall.
-- **Review**: Installation methods section
+- **Explanation**: `/plugin enable` and `/plugin disable` are real slash commands. For updating an installed plugin, `claude plugin update <name>` is the form documented in the plugins reference, and the one Claude Code points you to when an update is available.
+- **Review**: Plugin CLI Commands section
 
 ### Q9
 - **Category**: conceptual
@@ -580,7 +580,7 @@
 - **Options**: A) Plugins are faster | B) Single-command install, versioned, marketplace distribution, bundles everything together | C) Plugins have more permissions | D) Plugins work offline
 - **Correct**: B
 - **Explanation**: Plugins package multiple components into one installable unit with versioning, marketplace distribution, and automatic updates — vs. manual setup of standalone components.
-- **Review**: Standalone vs Plugin comparison section
+- **Review**: Standalone vs Plugin Approach
 
 ### Q10
 - **Category**: practical
@@ -588,7 +588,7 @@
 - **Options**: A) `.claude-plugin/hooks.json` | B) `hooks/hooks.json` | C) `plugin.json` hooks section | D) `.claude/settings.json`
 - **Correct**: B
 - **Explanation**: Plugin hooks are configured in `hooks/hooks.json` within the plugin directory structure.
-- **Review**: Plugin hooks section
+- **Review**: Plugin Structure Example
 
 ---
 
@@ -605,7 +605,7 @@
 ### Q2
 - **Category**: practical
 - **Question**: How do you access the checkpoint browser?
-- **Options**: A) Use `/checkpoints` command | B) Press `Esc + Esc` (double-escape) or use `/rewind` | C) Use `/history` command | D) Press `Ctrl+Z`
+- **Options**: A) Use `/restore` command | B) Press `Esc + Esc` (double-escape) or use `/rewind` | C) Use `/history` command | D) Press `Ctrl+Z`
 - **Correct**: B
 - **Explanation**: Double-escape (Esc+Esc) or the `/rewind` command opens the checkpoint browser to select a restore point.
 - **Review**: Accessing checkpoints section
@@ -613,17 +613,17 @@
 ### Q3
 - **Category**: conceptual
 - **Question**: How many rewind options are available, and what are they?
-- **Options**: A) 3: Undo, Redo, Reset | B) 5: Restore code+conversation, Restore conversation, Restore code, Summarize from here, Never mind | C) 2: Full restore, Partial restore | D) 4: Code, Messages, Both, Cancel
+- **Options**: A) 3: Undo, Redo, Reset | B) 6: Restore code+conversation, Restore conversation, Restore code, Summarize from here, Summarize up to here, Never mind | C) 2: Full restore, Partial restore | D) 4: Code, Messages, Both, Cancel
 - **Correct**: B
-- **Explanation**: The 5 options are: Restore code and conversation (full rollback), Restore conversation only, Restore code only, Summarize from here (compress), Never mind (cancel).
+- **Explanation**: The 6 options are: Restore code and conversation (full rollback), Restore conversation only, Restore code only, Summarize from here (compress forward), Summarize up to here (compress backward), Never mind (cancel). The two summary options give bidirectional context compaction.
 - **Review**: Rewind options section
 
 ### Q4
 - **Category**: practical
-- **Question**: You used `rm -rf temp/` via Bash in Claude Code, then want to rewind. Will the checkpoint restore those files?
-- **Options**: A) Yes, checkpoints capture everything | B) No, Bash filesystem operations (rm, mv, cp) are not tracked by checkpoints | C) Only if you used the Edit tool instead | D) Only if autoCheckpoint was enabled
+- **Question**: Claude created `temp/` with Bash commands only (it never edited those files with its Write or Edit tools), then ran `rm -rf temp/`. Will `/rewind` restore them?
+- **Options**: A) Yes, checkpoints capture everything | B) No — a file that only Bash commands changed isn't tracked, so rewind leaves it as it is | C) Only if you rewind within 5 minutes | D) Only if autoCheckpoint was enabled
 - **Correct**: B
-- **Explanation**: Checkpoints only track file changes made by Claude's tools (Write, Edit). Bash commands like rm, mv, cp operate outside checkpoint tracking.
+- **Explanation**: Checkpoints track edits made by Claude's file editing tools. Once Claude has edited a file with its file editing tools, `/rewind` also undoes changes that Bash commands make to that file afterward. A file that only Bash commands changed, like `temp/` here, isn't tracked and stays as it is, so use Git to recover it. Since v2.1.309, `sed -i` is treated like any other Bash edit. Edits by a subagent (other than a foreground `context: fork` skill) are restored only for files Claude had already edited in the conversation. Symlinked and hard-linked paths are skipped on restore.
 - **Review**: Limitations section
 
 ### Q5
@@ -631,8 +631,8 @@
 - **Question**: How long are checkpoints retained?
 - **Options**: A) Until session ends | B) 7 days | C) 30 days | D) Indefinitely
 - **Correct**: C
-- **Explanation**: Checkpoints persist across sessions for up to 30 days, after which they are automatically cleaned up.
-- **Review**: Checkpoint persistence section
+- **Explanation**: Checkpoints are saved with the session, so `/rewind` works after you resume it; snapshots are deleted about 30 days after the session last saved one (`cleanupPeriodDays`); only the 100 most recent checkpoints keep file snapshots. The window is governed by `cleanupPeriodDays`.
+- **Review**: Checkpoint Retention section
 
 ### Q6
 - **Category**: practical
@@ -640,7 +640,7 @@
 - **Options**: A) Deletes the conversation from that point | B) Compresses the conversation into an AI-generated summary while preserving the original in the transcript | C) Creates a bullet-point list of changes | D) Exports the conversation to a file
 - **Correct**: B
 - **Explanation**: Summarize compresses the conversation into a shorter AI-generated summary. The original full text is preserved in the transcript file.
-- **Review**: Summarize option section
+- **Review**: Rewind Options section
 
 ### Q7
 - **Category**: conceptual
@@ -653,9 +653,9 @@
 ### Q8
 - **Category**: practical
 - **Question**: How do you disable automatic checkpoint creation?
-- **Options**: A) Use `--no-checkpoints` flag | B) Set `autoCheckpoint: false` in settings | C) Delete the checkpoints directory | D) Checkpoints cannot be disabled
+- **Options**: A) Use `--no-checkpoints` flag | B) Set `fileCheckpointingEnabled: false` in settings | C) Delete the checkpoints directory | D) Checkpoints cannot be disabled
 - **Correct**: B
-- **Explanation**: Set `autoCheckpoint: false` in your configuration to disable automatic checkpoint creation (default is true).
+- **Explanation**: Set `fileCheckpointingEnabled: false` in your configuration to disable automatic checkpoint creation (default is true; requires v2.1.119+). Env equivalent: `CLAUDE_CODE_DISABLE_FILE_CHECKPOINTING`.
 - **Review**: Configuration section
 
 ### Q9
@@ -681,9 +681,9 @@
 ### Q1
 - **Category**: conceptual
 - **Question**: What are the six permission modes in Claude Code?
-- **Options**: A) read, write, execute, admin, root, sudo | B) default, acceptEdits, plan, auto, dontAsk, bypassPermissions | C) safe, normal, elevated, admin, unrestricted, god | D) view, edit, run, deploy, full, bypass
+- **Options**: A) read, write, execute, admin, root, sudo | B) manual, acceptEdits, plan, auto, dontAsk, bypassPermissions | C) safe, normal, elevated, admin, unrestricted, god | D) view, edit, run, deploy, full, bypass
 - **Correct**: B
-- **Explanation**: The six modes are: default (prompts for everything), acceptEdits (auto-accepts file edits), plan (read-only analysis), auto (background classifier decides), dontAsk (auto-denies unless pre-approved), bypassPermissions (skips all checks).
+- **Explanation**: The six modes are: manual (runs reads without asking and prompts for everything else — shown as Manual; its config value is `default`, and manual is accepted as an alias since v2.1.200), acceptEdits (auto-accepts file edits), plan (read-only analysis), auto (background classifier decides), dontAsk (auto-denies unless pre-approved), bypassPermissions (skips all checks).
 - **Review**: Permission Modes section
 
 ### Q2
@@ -704,18 +704,18 @@
 
 ### Q4
 - **Category**: practical
-- **Question**: How do you toggle extended thinking during a session?
-- **Options**: A) Type `/think` | B) Press `Option+T` (macOS) or `Alt+T` | C) Use `--thinking` flag | D) It's always enabled and cannot be toggled
+- **Question**: On a model where thinking can be turned off (for example Sonnet 5), how do you toggle extended thinking on or off during a session?
+- **Options**: A) Type `/effort max` | B) Press `Option+T` (macOS) or `Alt+T` | C) Include "ultrathink" in prompt | D) It's always enabled and cannot be toggled
 - **Correct**: B
-- **Explanation**: Option+T (macOS) or Alt+T toggles extended thinking. It's enabled by default for all models. Opus 4.6 supports adaptive effort levels.
+- **Explanation**: Option+T (macOS) or Alt+T toggles extended thinking on/off for the session. (`Ctrl+O` toggles verbose mode to show/hide the reasoning text.) On Opus 5.5 (the default model since v2.1.280), Sonnet 5.5 (what the `sonnet` alias resolves to on the Anthropic API since v2.1.284), Haiku 5.5 (what the `haiku` alias resolves to on the Anthropic API since v2.1.293), and the Fable models, thinking can't be turned off: the toggle, `alwaysThinkingEnabled` and `MAX_THINKING_TOKENS=0` have no effect there. For one-off deep reasoning, include "ultrathink" in your prompt; for session-level control, use the `/effort` command.
 - **Review**: Extended Thinking section
 
 ### Q5
 - **Category**: conceptual
-- **Question**: Are "think" or "ultrathink" special keywords that activate enhanced thinking?
-- **Options**: A) Yes, they activate deeper reasoning | B) No, they are treated as regular prompt text with no special behavior | C) Only "ultrathink" is special | D) They work only with Opus
-- **Correct**: B
-- **Explanation**: The documentation explicitly states these are regular prompt instructions, not special activation keywords. Extended thinking is controlled via Alt+T toggle and environment variables.
+- **Question**: Does the "ultrathink" keyword trigger deep reasoning?
+- **Options**: A) Yes, it triggers deep reasoning for one response without changing session settings | B) No, it's treated as regular prompt text | C) Yes, but only on Opus 4.6 | D) Yes, and it permanently changes the effort level
+- **Correct**: A
+- **Explanation**: Including "ultrathink" in your prompt adds an in-context instruction for the model to reason more on that turn. It does not change the effort level sent to the API—use `/effort max` for session-level deep reasoning.
 - **Review**: Extended Thinking section
 
 ### Q6
@@ -723,8 +723,8 @@
 - **Question**: How do you run Claude in a CI/CD pipeline with structured JSON output and a turn limit?
 - **Options**: A) `claude --ci --json --limit 3` | B) `claude -p --output-format json --max-turns 3 "review code"` | C) `claude --pipeline --format json` | D) `claude run --json --turns 3`
 - **Correct**: B
-- **Explanation**: Print mode (`-p`) with `--output-format json` and `--max-turns` is the standard CI/CD integration pattern.
-- **Review**: Headless/Print Mode section
+- **Explanation**: Print mode (`-p`) with `--output-format json` and `--max-turns` is the standard CI/CD integration pattern. Since v2.1.302, a `claude -p` or Agent SDK run with no permission mode set starts in Manual mode (config value `default`) and denies tool calls that need approval; pass `--permission-mode` (for example `auto` or `acceptEdits`) or `--allowedTools`.
+- **Review**: Headless Mode
 
 ### Q7
 - **Category**: conceptual
@@ -747,7 +747,7 @@
 - **Question**: What is the difference between `dontAsk` and `bypassPermissions` modes?
 - **Options**: A) They are the same | B) `dontAsk` auto-denies unless pre-approved; `bypassPermissions` skips all checks entirely | C) `dontAsk` is for files; `bypassPermissions` is for commands | D) `bypassPermissions` is safer
 - **Correct**: B
-- **Explanation**: dontAsk auto-denies permission requests unless they match pre-approved patterns. bypassPermissions skips all safety checks entirely — it's dangerous for routine use.
+- **Explanation**: dontAsk auto-denies permission requests unless they match pre-approved patterns (a mod you installed can still approve some of those calls). bypassPermissions skips all safety checks entirely — it's dangerous for routine use.
 - **Review**: Permission Modes section
 
 ### Q10
@@ -792,15 +792,15 @@
 - **Options**: A) Just use `--output-format json` | B) Use `--output-format json --json-schema '{"type":"object",...}'` | C) Use `--strict-json` flag | D) JSON output is always schema-valid
 - **Correct**: B
 - **Explanation**: `--output-format json` alone produces best-effort JSON. Adding `--json-schema` with a JSON Schema definition guarantees the output matches the schema.
-- **Review**: Output and format section
+- **Review**: Output & Format
 
 ### Q5
 - **Category**: conceptual
 - **Question**: Which flag only works in print mode (-p) and has no effect in interactive mode?
 - **Options**: A) `--model` | B) `--system-prompt-file` | C) `--verbose` | D) `--max-turns`
-- **Correct**: B
-- **Explanation**: `--system-prompt-file` loads a system prompt from a file but only works in print mode. Use `--system-prompt` (inline string) for interactive sessions.
-- **Review**: System prompt flags comparison table
+- **Correct**: D
+- **Explanation**: `--max-turns` limits the number of agentic turns and applies only in print mode (`-p`); it exits with an error when the limit is reached. `--system-prompt-file`, like the other system-prompt flags, works in both interactive and print modes.
+- **Review**: Advanced Features
 
 ### Q6
 - **Category**: practical
@@ -808,23 +808,23 @@
 - **Options**: A) `claude --read-only "audit code"` | B) `claude --permission-mode plan --tools "Read,Grep,Glob" "audit code"` | C) `claude --safe-mode "audit code"` | D) `claude --no-write "audit code"`
 - **Correct**: B
 - **Explanation**: Combine `--permission-mode plan` (read-only analysis) with `--tools` (allowlist of specific tools) to restrict Claude to only read operations.
-- **Review**: Tool and permission management section
+- **Review**: Tool & Permission Management
 
 ### Q7
 - **Category**: conceptual
 - **Question**: What is the agent definition priority order?
-- **Options**: A) Project > User > CLI | B) CLI > User > Project | C) User > CLI > Project | D) All are equal priority
+- **Options**: A) Project > User > CLI | B) CLI > Project > User | C) User > CLI > Project | D) All are equal priority
 - **Correct**: B
-- **Explanation**: CLI-defined agents (--agents flag) have highest priority, then User-level (~/.claude/agents/), then Project-level (.claude/agents/).
+- **Explanation**: Full order is managed settings > `--agents` flag > project (`.claude/agents/`) > user (`~/.claude/agents/`) > plugin. Of the options listed, CLI > Project > User is the correct relative ordering.
 - **Review**: Agents configuration section
 
 ### Q8
 - **Category**: practical
-- **Question**: How do you fork an existing session to try a different approach without losing the original?
-- **Options**: A) Use `/fork` command | B) Use `--resume session-name --fork-session "branch name"` | C) Use `--clone session-name` | D) Use `/branch session-name`
+- **Question**: From your shell, how do you start a new session from the saved session `feature-auth` so the original session stays unchanged?
+- **Options**: A) `claude --clone feature-auth` | B) `claude --resume feature-auth --fork-session` | C) `claude --branch feature-auth` | D) `claude --resume feature-auth`
 - **Correct**: B
-- **Explanation**: `--resume` with `--fork-session` creates a new independent branch from the resumed session, preserving the original conversation.
-- **Review**: Session management section
+- **Explanation**: `--fork-session` (used with `--resume` or `--continue`) creates a new session ID instead of reusing the original, so the original conversation is preserved. Plain `--resume` reopens the same session and adds to it. Inside a running session, `/branch` does the equivalent and switches you into the copy; `/fork` copies the conversation into a new background session.
+- **Review**: Session Fork section
 
 ### Q9
 - **Category**: conceptual
@@ -841,3 +841,37 @@
 - **Correct**: B
 - **Explanation**: Use shell for-loops with print mode to process files one at a time. Each invocation is independent and can produce structured output.
 - **Review**: Batch processing section
+
+---
+
+**Last Updated**: October 26, 2026
+**Claude Code Version**: 2.1.310
+**Sources**:
+- https://code.claude.com/docs/en/hooks
+- https://code.claude.com/docs/en/skills
+- https://code.claude.com/docs/en/mcp
+- https://code.claude.com/docs/en/memory
+- https://code.claude.com/docs/en/sub-agents
+- https://code.claude.com/docs/en/permission-modes
+- https://code.claude.com/docs/en/checkpointing
+- https://code.claude.com/docs/en/plugins-reference
+- https://code.claude.com/docs/en/cli-reference
+- https://code.claude.com/docs/en/model-config#extended-thinking
+- https://code.claude.com/docs/en/plugins/install
+- https://code.claude.com/docs/en/commands
+- https://code.claude.com/docs/en/plugins/cli-reference
+- https://code.claude.com/docs/en/plugins
+- https://code.claude.com/docs/en/hooks#pretooluse-decision-control
+- https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcp-json
+- https://code.claude.com/docs/en/mcp#configure-tool-search
+- https://code.claude.com/docs/en/skills#frontmatter-reference
+- https://code.claude.com/docs/en/checkpointing#automatic-tracking
+- https://code.claude.com/docs/en/mcp#example-connect-to-github-for-code-reviews
+- https://code.claude.com/docs/en/changelog#2-1-302
+- https://code.claude.com/docs/en/interactive-mode
+- https://code.claude.com/docs/en/checkpointing#bash-command-changes-not-tracked
+- https://code.claude.com/docs/en/changelog#2-1-309
+- https://code.claude.com/docs/en/memory#deploy-organization-wide-claude-md
+- https://code.claude.com/docs/en/sub-agents#which-subagents-run-in-the-background
+- https://code.claude.com/docs/en/mcp#tool-search-through-an-llm-gateway
+- https://code.claude.com/docs/en/sub-agents#resume-subagents

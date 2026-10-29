@@ -531,3 +531,12 @@ Proceed with this plan? (yes/no/modify)
 5. **Include rollback** strategies
 6. **Add success** criteria
 7. **Plan for testing** at each phase
+
+---
+**Last Updated**: July 29, 2026
+**Claude Code Version**: 2.1.220
+**Sources**:
+- https://code.claude.com/docs/en/changelog
+- https://code.claude.com/docs/en/best-practices
+- https://code.claude.com/docs/en/model-config
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

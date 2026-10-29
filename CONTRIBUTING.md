@@ -67,18 +67,47 @@ git checkout -b docs/improvement-area
 ```
 
 ### 3. Set Up Your Environment
+
+Pre-commit hooks run the same checks as CI locally before every commit. All five checks must pass before a PR will be accepted.
+
+**Required dependencies:**
+
 ```bash
-# Create virtual environment
-python3 -m venv .venv
+# Python tooling (uv is the package manager for this project)
+pip install uv
+uv venv
 source .venv/bin/activate
+uv pip install -r scripts/requirements-dev.txt
 
-# Install pre-commit hooks (optional but recommended)
-pip install pre-commit
+# Markdown linter (Node.js)
+npm install -g markdownlint-cli
+
+# Mermaid diagrams render with Pele, which needs Node.js >= 20 (nothing to
+# install globally). Check your version:
+node --version
+
+# Install pre-commit and activate hooks
+uv pip install pre-commit
 pre-commit install
+```
 
-# Run pre-commit checks manually
+**Verify your setup:**
+
+```bash
 pre-commit run --all-files
 ```
+
+The first run downloads Node.js 22 for the Mermaid hooks (pre-commit provisions it, so they work even without a system Node.js) and the pinned Pele bundle into `scripts/.vendor-cache/pele/`; later runs work offline. The Mermaid hooks run in strict mode and fail if Pele cannot run. To commit offline before that first download, skip them with `SKIP=mermaid,vietnamese-mermaid,japanese-mermaid`.
+
+The hooks that run on every commit are:
+
+| Hook | What it checks |
+|------|---------------|
+| `markdown-lint` | Markdown formatting and structure |
+| `cross-references` | Relative links, anchors, code fences |
+| `mermaid-syntax` | All ` ```mermaid ` blocks parse correctly |
+| `link-check` | External URLs are reachable |
+| `build-epub` | EPUB generates without errors (on `.md` changes) |
 
 ## Directory Structure
 
@@ -219,17 +248,11 @@ docs(skills): Add comprehensive code review skill
 
 ### Local Testing
 ```bash
-# Check file formatting
+# Run all pre-commit checks (same checks as CI)
 pre-commit run --all-files
-
-# Verify links work (if applicable)
-# Test examples manually with Claude Code
 
 # Review your changes
 git diff
-
-# Test the EPUB generation (if docs changed)
-uv run scripts/build_epub.py
 ```
 
 ## Pull Request Process
@@ -356,3 +379,10 @@ By contributing to this project, you agree that your contributions will be licen
 - Open an issue for discussion
 
 Thank you for contributing! 🙏
+
+---
+**Last Updated**: August 4, 2026
+**Claude Code Version**: 2.1.220
+**Sources**:
+- https://code.claude.com/docs/en/overview
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

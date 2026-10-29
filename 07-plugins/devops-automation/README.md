@@ -18,7 +18,7 @@ Complete DevOps automation for deployment, monitoring, and incident response.
 ## Installation
 
 ```bash
-/plugin install devops-automation
+claude --plugin-dir ./07-plugins/devops-automation
 ```
 
 ## What's Included
@@ -75,7 +75,7 @@ Complete DevOps automation for deployment, monitoring, and incident response.
 
 ## Requirements
 
-- Claude Code 1.0+
+- Claude Code 2.1+
 - Kubernetes CLI (kubectl)
 - Cluster access configured
 
@@ -105,3 +105,16 @@ Result:
 🚀 Pods: 3/3 ready
 ⏱️  Time: 2m 34s
 ```
+
+---
+
+**Last Updated**: October 18, 2026
+**Claude Code Version**: 2.1.302
+**Sources**:
+- https://code.claude.com/docs/en/plugins
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.131
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.138
+- https://code.claude.com/docs/en/model-config
+- https://code.claude.com/docs/en/plugins/cli-reference
+- https://code.claude.com/docs/en/plugins/install
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

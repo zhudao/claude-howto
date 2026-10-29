@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# dependencies = ["ebooklib", "markdown", "beautifulsoup4", "httpx", "pillow", "tenacity"]
+# dependencies = ["ebooklib", "markdown", "beautifulsoup4", "pillow"]
 # ///
 """
 Build an EPUB from the Claude How-To markdown files.
@@ -17,8 +17,7 @@ Usage:
         --root, -r      Root directory containing markdown files (default: repo root)
         --output, -o    Output EPUB file path (default: <root>/claude-howto-guide.epub)
         --verbose, -v   Enable verbose logging
-        --timeout       Timeout for API requests in seconds (default: 30)
-        --max-concurrent Maximum concurrent API requests (default: 10)
+        --lang          Language tree to build: en, vi, zh or ja (default: en)
 
     The script uses inline script dependencies (PEP 723), so uv will
     automatically install required packages in an isolated environment.
@@ -28,44 +27,48 @@ Output:
 
 Features:
     - Organizes chapters by folder structure (01-slash-commands, etc.)
-    - Renders Mermaid diagrams as PNG images via Kroki.io API (async concurrent)
+    - Renders Mermaid diagrams as SVG images with the pinned Pele bundle; CSS
+      variables are flattened to literal colours on an opaque white canvas so
+      every EPUB reader shows them
     - Generates a cover image from the project logo
     - Converts internal markdown links to EPUB chapter references
-    - Handles SVG images by replacing with styled placeholders
+    - Embeds SVG images referenced by the Markdown as EPUB image resources
     - Strict error mode: fails if any diagram cannot be rendered
 
 Requirements:
     - uv (recommended) or Python 3.10+ with dependencies installed
-    - Internet connection for Mermaid diagram rendering
+    - Node.js >= 20 on PATH. The pinned Pele bundle is downloaded on first run
+      (network needed once), checksum-verified, and cached in
+      scripts/.vendor-cache/pele/; later builds work offline
     - Repository structure with markdown files and claude-howto-logo.png
 """
 
 from __future__ import annotations
 
 import argparse
-import asyncio
-import base64
 import html
 import logging
 import os
 import re
 import sys
-import zlib
+
+# Parses SVG produced moments ago by the pinned, checksum-verified Pele
+# bundle from this repo's own Markdown, not untrusted input.
+import xml.etree.ElementTree as ET  # nosec B405
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 
-import httpx
 import markdown
 from bs4 import BeautifulSoup
 from ebooklib import epub
 from PIL import Image, ImageDraw, ImageFont
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
+
+# Make sibling script modules importable regardless of cwd.
+sys.path.insert(0, str(Path(__file__).parent))
+
+from pele_renderer import PeleHelperError, PeleUnavailableError, render_diagrams
+from vendor_assets import PELE_VERSION
 
 # =============================================================================
 # Custom Exceptions
@@ -116,18 +119,22 @@ class EPUBConfig:
     language: str = "en"
     author: str = "Claude Code Community"
 
+    # Language-specific metadata
+    vi_title: str = "Hướng Dẫn Claude Code"
+    vi_subtitle: str = "Làm chủ Claude Code trong một cuối tuần"
+    en_title: str = "Claude Code How-To Guide"
+    en_subtitle: str = "Master Claude Code in a Weekend"
+    zh_title: str = "Claude Code 使用指南"
+    zh_subtitle: str = "一个周末掌握 Claude Code"
+    ja_title: str = "Claude Code ハウツーガイド"
+    ja_subtitle: str = "週末で Claude Code をマスターする"
+
     # Cover Settings
     cover_width: int = 600
     cover_height: int = 900
     cover_bg_color: tuple[int, int, int] = (26, 26, 46)
     cover_title_color: tuple[int, int, int] = (78, 205, 196)
     cover_subtitle_color: tuple[int, int, int] = (168, 178, 209)
-
-    # Network Settings
-    kroki_base_url: str = "https://kroki.io"
-    request_timeout: float = 30.0
-    max_retries: int = 3
-    max_concurrent_requests: int = 10
 
     # Font paths (platform-specific)
     title_font_paths: list[str] = field(
@@ -155,6 +162,9 @@ class BuildState:
     mermaid_cache: dict[str, tuple[bytes, str]] = field(default_factory=dict)
     mermaid_counter: int = 0
     mermaid_added_to_book: set[str] = field(default_factory=set)
+    svg_cache: dict[str, tuple[bytes, str]] = field(default_factory=dict)
+    svg_counter: int = 0
+    svg_added_to_book: set[str] = field(default_factory=set)
     path_to_chapter: dict[str, str] = field(default_factory=dict)
 
     def reset(self) -> None:
@@ -162,6 +172,9 @@ class BuildState:
         self.mermaid_cache.clear()
         self.mermaid_counter = 0
         self.mermaid_added_to_book.clear()
+        self.svg_cache.clear()
+        self.svg_counter = 0
+        self.svg_added_to_book.clear()
         self.path_to_chapter.clear()
 
 
@@ -234,24 +247,148 @@ def validate_inputs(config: EPUBConfig, logger: logging.Logger) -> None:
 
 
 # =============================================================================
-# Mermaid Rendering (Async with Retry)
+# Mermaid Rendering (Pele)
 # =============================================================================
 
+SVG_NS = "http://www.w3.org/2000/svg"
+ET.register_namespace("", SVG_NS)
 
-def sanitize_mermaid(mermaid_code: str) -> str:
-    """Sanitize mermaid code to avoid markdown parsing issues.
+# Pele measures label widths with Arial metrics, so keep a metric-compatible
+# stack: EPUB readers cannot see the website's web fonts.
+EPUB_DIAGRAM_FONT = "Arial, Helvetica, 'Liberation Sans', sans-serif"
 
-    Mermaid's markdown-in-nodes feature incorrectly interprets numbered
-    lists (e.g., "1. Item") inside node labels. This escapes the period
-    to prevent that.
+_ALIAS_DECL_RE = re.compile(
+    r"^(--_[a-z0-9]+)\s*:\s*var\(\s*(--pele-[a-z0-9-]+)\s*,\s*(.+?)\s*\)$"
+)
+# Digits matter: series colours are `--pele-series-1`, `--pele-series-2`, ...
+_PELE_VAR_RE = re.compile(r"var\(\s*(--pele-[a-z0-9-]+)\s*,\s*([^()]+?)\s*\)")
+_ALIAS_REF_RE = re.compile(r"var\(\s*(--_[a-z0-9]+)\s*\)")
+_COLOR_MIX_RE = re.compile(
+    r"color-mix\(\s*in srgb\s*,\s*(#[0-9a-fA-F]{3,6})\s+(\d+(?:\.\d+)?)%"
+    r"\s*,\s*(#[0-9a-fA-F]{3,6})\s*\)"
+)
+
+
+def _hex_to_rgb(color: str) -> list[int]:
+    value = color.lstrip("#")
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
+    return [int(value[i : i + 2], 16) for i in (0, 2, 4)]
+
+
+def _mix_colors(match: re.Match[str]) -> str:
+    first = _hex_to_rgb(match.group(1))
+    weight = float(match.group(2)) / 100
+    second = _hex_to_rgb(match.group(3))
+    return "#" + "".join(
+        f"{round(a * weight + b * (1 - weight)):02x}"
+        for a, b in zip(first, second, strict=True)
+    )
+
+
+def flatten_svg_vars(svg: str, theme: dict[str, str] | None = None) -> str:
+    """Resolve Pele's CSS custom properties to literal values for EPUB readers.
+
+    EPUB readers do not reliably support CSS variables, which Pele uses for
+    every colour. This parses the SVG and, in ATTRIBUTE VALUES ONLY (text
+    nodes are never touched, so a label such as ``claude --model: opus``
+    survives), resolves ``var(--pele-x, fallback)`` to the ``theme`` override
+    or the fallback, ``var(--_x)`` aliases to their resolved value, and
+    ``color-mix(in srgb, ...)`` to a hex colour. The custom-property
+    declarations are dropped from the root ``style``, ``style="rx:..."`` becomes
+    an ``rx`` attribute, the font becomes ``EPUB_DIAGRAM_FONT``, and an opaque
+    background ``<rect>`` covering the viewBox is inserted as the first child so
+    dark-mode readers keep edges and text visible. The default theme is Pele's
+    own fallbacks (white background).
     """
-    # Escape numbered list patterns inside brackets: [1. Text] -> [1\. Text]
-    sanitized = re.sub(r'\[(["\']?)(\d+)\.(\s)', r"[\1\2\\.\3", mermaid_code)
-    return sanitized
+    theme = theme or {}
+    try:
+        root = ET.fromstring(svg)  # nosec B314
+    except ET.ParseError as exc:
+        raise MermaidRenderError(f"Pele produced invalid SVG: {exc}") from exc
+
+    aliases = _strip_root_custom_properties(root, theme)
+
+    def resolve_pele_var(match: re.Match[str]) -> str:
+        if match.group(1) == "--pele-font":
+            return EPUB_DIAGRAM_FONT
+        return theme.get(match.group(1), match.group(2))
+
+    def resolve_alias(match: re.Match[str]) -> str:
+        if match.group(1) not in aliases:
+            raise MermaidRenderError(
+                f"Pele SVG references undefined CSS variable {match.group(1)}"
+            )
+        return aliases[match.group(1)]
+
+    for element in root.iter():
+        for name, value in list(element.attrib.items()):
+            if "var(" not in value and "color-mix" not in value:
+                continue
+            flat = _PELE_VAR_RE.sub(resolve_pele_var, value)
+            flat = _ALIAS_REF_RE.sub(resolve_alias, flat)
+            flat = _COLOR_MIX_RE.sub(_mix_colors, flat)
+            if "var(" in flat or "color-mix" in flat:
+                raise MermaidRenderError(
+                    f"Could not flatten CSS in Pele SVG attribute {name}={flat!r}"
+                )
+            element.set(name, flat)
+        _move_radius_to_attribute(element)
+
+    _insert_background(root, theme.get("--pele-bg", aliases.get("--_bg", "#fff")))
+    return ET.tostring(root, encoding="unicode")
+
+
+def _strip_root_custom_properties(
+    root: ET.Element, theme: dict[str, str]
+) -> dict[str, str]:
+    """Drop `--*` declarations from the root style; return resolved aliases."""
+    aliases: dict[str, str] = {}
+    kept: list[str] = []
+    for decl in (d.strip() for d in root.get("style", "").split(";")):
+        if not decl:
+            continue
+        match = _ALIAS_DECL_RE.match(decl)
+        if match:
+            aliases[match.group(1)] = theme.get(match.group(2), match.group(3))
+        elif not decl.startswith("--"):
+            kept.append(decl)
+    root.set("style", ";".join(kept))
+    return aliases
+
+
+def _move_radius_to_attribute(element: ET.Element) -> None:
+    """Turn `style="rx:4px;..."` into `rx="4"`, keeping other declarations."""
+    style = element.get("style")
+    if not style or not style.startswith("rx:"):
+        return
+    radius, _, rest = style.partition(";")
+    element.set("rx", radius[3:].strip().removesuffix("px"))
+    if rest.strip():
+        element.set("style", rest)
+    else:
+        del element.attrib["style"]
+
+
+def _insert_background(root: ET.Element, color: str) -> None:
+    """Insert an opaque `<rect>` covering the viewBox as the first child."""
+    view_box = (root.get("viewBox") or "").split()
+    if len(view_box) != 4:
+        raise MermaidRenderError(
+            f"Pele SVG has a missing or malformed viewBox: {root.get('viewBox')!r}"
+        )
+    x, y, width, height = view_box
+    root.insert(
+        0,
+        ET.Element(
+            f"{{{SVG_NS}}}rect",
+            {"x": x, "y": y, "width": width, "height": height, "fill": color},
+        ),
+    )
 
 
 class MermaidRenderer:
-    """Async renderer for Mermaid diagrams via Kroki.io API."""
+    """Renders Mermaid diagrams to flattened SVG with the pinned Pele bundle."""
 
     def __init__(
         self, config: EPUBConfig, state: BuildState, logger: logging.Logger
@@ -259,102 +396,63 @@ class MermaidRenderer:
         self.config = config
         self.state = state
         self.logger = logger
-        self._semaphore: asyncio.Semaphore | None = None
 
-    async def _fetch_single(
-        self, client: httpx.AsyncClient, mermaid_code: str, index: int
-    ) -> tuple[str, tuple[bytes, str]]:
-        """Fetch a single Mermaid diagram with retry logic."""
-        cache_key = mermaid_code.strip()
-
-        # Check cache first
-        if cache_key in self.state.mermaid_cache:
-            self.logger.debug(f"Cache hit for diagram {index}")
-            return cache_key, self.state.mermaid_cache[cache_key]
-
-        # Rate limit with semaphore
-        assert self._semaphore is not None
-        async with self._semaphore:
-            result = await self._fetch_with_retry(client, mermaid_code, index)
-            if result is None:
-                raise MermaidRenderError(
-                    f"Failed to render Mermaid diagram {index} after {self.config.max_retries} attempts"
-                )
-            return cache_key, result
-
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
-        reraise=True,
-    )
-    async def _fetch_with_retry(
-        self, client: httpx.AsyncClient, mermaid_code: str, index: int
-    ) -> tuple[bytes, str] | None:
-        """Fetch diagram with retry logic."""
-        try:
-            compressed = zlib.compress(mermaid_code.encode("utf-8"), level=9)
-            encoded = base64.urlsafe_b64encode(compressed).decode("ascii")
-            url = f"{self.config.kroki_base_url}/mermaid/png/{encoded}"
-
-            self.logger.debug(f"Fetching diagram {index}...")
-            response = await client.get(url, timeout=self.config.request_timeout)
-
-            if response.status_code == 200:
-                self.state.mermaid_counter += 1
-                img_name = f"mermaid_{self.state.mermaid_counter}.png"
-                result = (response.content, img_name)
-                cache_key = mermaid_code.strip()
-                self.state.mermaid_cache[cache_key] = result
-                self.logger.info(f"Rendered diagram {index} -> {img_name}")
-                return result
-            else:
-                self.logger.warning(
-                    f"Kroki API returned {response.status_code} for diagram {index}"
-                )
-                raise MermaidRenderError(
-                    f"Kroki API returned {response.status_code} for diagram {index}"
-                )
-
-        except httpx.TimeoutException:
-            self.logger.warning(f"Timeout fetching diagram {index}, will retry...")
-            raise
-        except httpx.NetworkError as e:
-            self.logger.warning(
-                f"Network error for diagram {index}: {e}, will retry..."
-            )
-            raise
-
-    async def render_all(
+    def render_all(
         self, diagrams: list[tuple[int, str]]
     ) -> dict[str, tuple[bytes, str]]:
-        """Render all Mermaid diagrams concurrently."""
-        self._semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
-        results: dict[str, tuple[bytes, str]] = {}
+        """Render every diagram with ONE Pele call; cache SVG bytes by source.
 
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            limits=httpx.Limits(max_connections=self.config.max_concurrent_requests),
-            timeout=httpx.Timeout(self.config.request_timeout),
-        ) as client:
-            tasks = [
-                self._fetch_single(client, sanitize_mermaid(code), idx)
-                for idx, code in diagrams
+        Returns ``{code.strip(): (svg_bytes, "mermaid_N.svg")}``. Any diagram
+        Pele rejects, or Pele being unavailable, raises MermaidRenderError.
+        """
+        pending: dict[str, int] = {}
+        for idx, code in diagrams:
+            key = code.strip()
+            if key not in self.state.mermaid_cache and key not in pending:
+                pending[key] = idx
+
+        if pending:
+            sources = list(pending)
+            self.logger.info(
+                f"Rendering {len(sources)} Mermaid diagrams with Pele {PELE_VERSION}..."
+            )
+            try:
+                results = render_diagrams(sources, self.logger)
+            except PeleUnavailableError as exc:
+                raise MermaidRenderError(
+                    f"Pele is unavailable: {exc}. The EPUB build needs Node.js >= 20 "
+                    "and network access the first time, to download the bundle."
+                ) from exc
+            except PeleHelperError as exc:
+                raise MermaidRenderError(f"Pele helper failed: {exc}") from exc
+
+            failures = [
+                f"Pele failed for diagram {pending[source]}: {result.error.describe()}"
+                for source, result in zip(sources, results, strict=True)
+                if result.error is not None
             ]
+            if failures:
+                raise MermaidRenderError("\n".join(failures))
 
-            self.logger.info(f"Fetching {len(tasks)} Mermaid diagrams concurrently...")
+            for source, result in zip(sources, results, strict=True):
+                if result.svg is None:
+                    raise MermaidRenderError(
+                        f"Pele returned no SVG for diagram {pending[source]}"
+                    )
+                svg_bytes = flatten_svg_vars(result.svg).encode("utf-8")
+                self.state.mermaid_counter += 1
+                img_name = f"mermaid_{self.state.mermaid_counter}.svg"
+                self.state.mermaid_cache[source] = (svg_bytes, img_name)
+                self.logger.debug(f"Rendered diagram {pending[source]} -> {img_name}")
 
-            # Use gather with return_exceptions=False for strict mode
-            completed = await asyncio.gather(*tasks)
-
-            for cache_key, data in completed:
-                results[cache_key] = data
-
-        success_count = len(results)
+        rendered = {
+            code.strip(): self.state.mermaid_cache[code.strip()] for _, code in diagrams
+        }
         self.logger.info(
-            f"Successfully rendered {success_count}/{len(diagrams)} diagrams"
+            f"Rendered {len(rendered)} unique Mermaid diagrams with Pele "
+            f"{PELE_VERSION} ({len(diagrams)} blocks)"
         )
-        return results
+        return rendered
 
 
 def extract_all_mermaid_blocks(
@@ -673,25 +771,50 @@ def create_chapter_html(
 </html>"""
 
 
-def handle_svg_image(src: str, alt: str, logger: logging.Logger) -> str:
-    """Handle SVG images with a styled placeholder."""
-    placeholder = f"""
-    <div class="svg-placeholder" style="
-        border: 1px dashed #ccc;
-        padding: 1em;
-        text-align: center;
-        background: #f9f9f9;
-        border-radius: 4px;
-        margin: 1em 0;
-    ">
-        <p><em>[SVG Image: {html.escape(alt)}]</em></p>
-        <p style="font-size: 0.8em; color: #666;">
-            Original: {html.escape(src)}
-        </p>
-    </div>
-    """
-    logger.debug(f"Replaced SVG image: {src}")
-    return placeholder
+def handle_svg_image(
+    src: str,
+    alt: str,
+    book: epub.EpubBook,
+    state: BuildState,
+    chapter_dir: Path,
+    root_path: Path,
+    logger: logging.Logger,
+) -> str:
+    """Embed an SVG image in the EPUB as a proper image resource."""
+    # Resolve the SVG file path
+    svg_path = (chapter_dir / src).resolve()
+    if not svg_path.is_file():
+        # Try relative to repo root
+        svg_path = (root_path / src).resolve()
+    if not svg_path.is_file():
+        logger.warning(f"SVG file not found: {src}")
+        return f"<p><em>[SVG not found: {html.escape(src)}]</em></p>"
+
+    svg_key = str(svg_path)
+
+    # Check cache for the assigned image name
+    if svg_key in state.svg_cache:
+        _, img_name = state.svg_cache[svg_key]
+    else:
+        svg_data = svg_path.read_bytes()
+        state.svg_counter += 1
+        img_name = f"svg_{state.svg_counter}.svg"
+        state.svg_cache[svg_key] = (svg_data, img_name)
+
+    # Add image to book once
+    if img_name not in state.svg_added_to_book:
+        svg_data, _ = state.svg_cache[svg_key]
+        img_item = epub.EpubItem(
+            uid=img_name.replace(".", "_"),
+            file_name=f"images/{img_name}",
+            media_type="image/svg+xml",
+            content=svg_data,
+        )
+        book.add_item(img_item)
+        state.svg_added_to_book.add(img_name)
+
+    logger.debug(f"Embedded SVG image: {src} -> {img_name}")
+    return f'<img src="images/{img_name}" alt="{html.escape(alt)}"/>'
 
 
 # =============================================================================
@@ -706,8 +829,7 @@ def process_mermaid_blocks(
     pattern = r"```mermaid\n(.*?)```"
 
     def replace_mermaid(match: re.Match[str]) -> str:
-        mermaid_code = sanitize_mermaid(match.group(1))
-        cache_key = mermaid_code.strip()
+        cache_key = match.group(1).strip()
 
         if cache_key in state.mermaid_cache:
             img_data, img_name = state.mermaid_cache[cache_key]
@@ -716,7 +838,7 @@ def process_mermaid_blocks(
                 img_item = epub.EpubItem(
                     uid=img_name.replace(".", "_"),
                     file_name=f"images/{img_name}",
-                    media_type="image/png",
+                    media_type="image/svg+xml",
                     content=img_data,
                 )
                 book.add_item(img_item)
@@ -787,8 +909,8 @@ def md_to_html(
     """Convert markdown to HTML with proper styling.
 
     Handles:
-    - Mermaid diagrams (rendered as PNG images)
-    - SVG images (replaced with styled placeholders)
+    - Mermaid diagrams (rendered by Pele as SVG images)
+    - SVG images (embedded as EPUB image resources)
     - Internal links (converted to EPUB chapter references)
     - Standard markdown features
     """
@@ -806,14 +928,34 @@ def md_to_html(
         ],
     )
 
-    # Clean up any SVG references (they won't work in EPUB)
+    # Embed SVG images as EPUB resources (using <img> tags, not <object>)
     soup = BeautifulSoup(html_content, "html.parser")
+    chapter_dir = current_file.parent
+
+    # Handle <picture> elements: extract <img> child, remove <picture>/<source> wrapper
+    for picture in soup.find_all("picture"):
+        img = picture.find("img")
+        if img:
+            picture.replace_with(img)
+        else:
+            picture.decompose()
+
     for img in soup.find_all("img"):
         src = img.get("src", "")
-        if src.endswith(".svg"):
-            alt = img.get("alt", "Image")
-            placeholder = handle_svg_image(src, alt, logger)
-            img.replace_with(BeautifulSoup(placeholder, "html.parser"))
+        if not src.endswith(".svg"):
+            continue
+        # Skip external URLs (badges, shields, etc.)
+        if src.startswith(("http://", "https://")):
+            continue
+        # Rendered diagrams are already EPUB items, not files on disk; sending
+        # them to handle_svg_image would swap them for a "not found" note.
+        if Path(src).name in state.mermaid_added_to_book:
+            continue
+        alt = img.get("alt", "Image")
+        converted = handle_svg_image(
+            src, alt, book, state, chapter_dir, root_path, logger
+        )
+        img.replace_with(BeautifulSoup(converted, "html.parser"))
 
     html_content = str(soup)
 
@@ -845,7 +987,6 @@ def create_stylesheet() -> epub.EpubItem:
     a { color: #e67e22; }
     img { max-width: 100%; height: auto; display: block; margin: 1em auto; }
     .diagram { text-align: center; margin: 1.5em 0; }
-    .svg-placeholder { border: 1px dashed #ccc; padding: 1em; text-align: center; background: #f9f9f9; border-radius: 4px; margin: 1em 0; }
     """
     return epub.EpubItem(
         uid="style_nav",
@@ -855,12 +996,12 @@ def create_stylesheet() -> epub.EpubItem:
     )
 
 
-async def build_epub_async(
+def build_epub_async(
     config: EPUBConfig,
     logger: logging.Logger,
     state: BuildState | None = None,
 ) -> Path:
-    """Build EPUB asynchronously with concurrent diagram fetching."""
+    """Build the EPUB, rendering every Mermaid diagram to SVG with Pele."""
     state = state or BuildState()
     state.reset()  # Ensure clean state
 
@@ -888,14 +1029,14 @@ async def build_epub_async(
     collector = ChapterCollector(config.root_path, state)
     chapter_infos = collector.collect_all_chapters(get_chapter_order())
 
-    # Extract and pre-fetch all Mermaid diagrams
+    # Extract all Mermaid diagrams and render them in one Pele batch
     logger.info("Extracting Mermaid diagrams...")
     md_files = [(ch.file_path, ch.file_title) for ch in chapter_infos]
     all_diagrams = extract_all_mermaid_blocks(md_files, logger)
 
     if all_diagrams:
         renderer = MermaidRenderer(config, state, logger)
-        await renderer.render_all(all_diagrams)
+        renderer.render_all(all_diagrams)
 
     # Process chapters
     logger.info("Processing chapters...")
@@ -987,7 +1128,7 @@ def create_epub(root_path: Path, output_path: Path, verbose: bool = False) -> Pa
     """Synchronous wrapper for backward compatibility."""
     logger = setup_logging(verbose)
     config = EPUBConfig(root_path=root_path, output_path=output_path)
-    return asyncio.run(build_epub_async(config, logger))
+    return build_epub_async(config, logger)
 
 
 # =============================================================================
@@ -1018,40 +1159,47 @@ def main() -> int:
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
     )
     parser.add_argument(
-        "--timeout",
-        type=float,
-        default=30.0,
-        help="Timeout for API requests in seconds (default: 30)",
-    )
-    parser.add_argument(
-        "--max-concurrent",
-        type=int,
-        default=10,
-        help="Maximum concurrent API requests (default: 10)",
+        "--lang",
+        type=str,
+        default="en",
+        choices=["en", "vi", "zh", "ja"],
+        help=(
+            "Language code: 'en' for English, 'vi' for Vietnamese, "
+            "'zh' for Chinese, 'ja' for Japanese (default: en)"
+        ),
     )
 
     args = parser.parse_args()
 
-    # Determine root path
-    root = args.root
-    if root is None:
-        # Default to parent of scripts directory (repo root)
-        root = Path(__file__).parent.parent
+    # Determine root path and language-specific settings
+    repo_root = args.root if args.root else Path(__file__).parent.parent
+    repo_root = repo_root.resolve()
+
+    # Set language-specific paths and metadata.
+    # Each entry: (source root, default output filename, title)
+    lang_map: dict[str, tuple[Path, str, str]] = {
+        "en": (repo_root, "claude-howto-guide.epub", EPUBConfig.en_title),
+        "vi": (repo_root / "vi", "claude-howto-guide-vi.epub", EPUBConfig.vi_title),
+        "zh": (repo_root / "zh", "claude-howto-guide-zh.epub", EPUBConfig.zh_title),
+        "ja": (repo_root / "ja", "claude-howto-guide-ja.epub", EPUBConfig.ja_title),
+    }
+    root, default_output_name, title = lang_map[args.lang]
+    output = args.output or (repo_root / default_output_name)
+    language = args.lang
 
     root = root.resolve()
-    output = args.output or (root / "claude-howto-guide.epub")
     output = output.resolve()
 
     logger = setup_logging(args.verbose)
     config = EPUBConfig(
         root_path=root,
         output_path=output,
-        request_timeout=args.timeout,
-        max_concurrent_requests=args.max_concurrent,
+        language=language,
+        title=title,
     )
 
     try:
-        result = asyncio.run(build_epub_async(config, logger))
+        result = build_epub_async(config, logger)
         print(f"Successfully created: {result}")
         return 0
     except EPUBBuildError as e:

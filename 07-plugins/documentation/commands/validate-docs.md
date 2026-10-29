@@ -1,5 +1,4 @@
 ---
-name: Validate Documentation
 description: Validate documentation for completeness and accuracy
 ---
 
@@ -12,3 +11,12 @@ Validate documentation quality:
 3. Ensure completeness
 4. Check formatting
 5. Validate against actual code
+
+---
+
+**Last Updated**: October 15, 2026
+**Claude Code Version**: 2.1.300
+**Sources**:
+- https://code.claude.com/docs/en/plugins
+- https://code.claude.com/docs/en/skills#frontmatter-reference
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

@@ -1,6 +1,6 @@
 ---
 name: self-assessment
-version: 2.2.0
+version: 2.5.6
 description: Comprehensive Claude Code self-assessment and learning path advisor. Runs a multi-category quiz covering 10 feature areas, produces a detailed skill profile with per-topic scores, identifies specific gaps, and generates a personalized learning path with prioritized next steps. Use when asked to "assess my level", "take the quiz", "find my level", "where should I start", "what should I learn next", "check my skills", "skill check", or "level up".
 ---
 
@@ -15,7 +15,7 @@ Comprehensive interactive assessment that evaluates Claude Code proficiency acro
 Present the user with a choice of assessment depth:
 
 Use AskUserQuestion with these options:
-- **Quick Assessment** — "8 questions, ~2 minutes. Determines your overall level (Beginner/Intermediate/Advanced) and gives a learning path."
+- **Quick Assessment** — "2 multi-select questions (8 items), ~2 minutes. Determines your overall level (Beginner/Intermediate/Advanced) and gives a learning path."
 - **Deep Assessment** — "5 categories with detailed questions, ~5 minutes. Gives per-topic skill scores, identifies specific gaps, and builds a prioritized learning path."
 
 If user chooses **Quick Assessment**, go to Step 2A.
@@ -39,7 +39,7 @@ Options:
 "Part 2/2: Which of these advanced skills do you have?"
 Options:
 1. "Configured an MCP server" — e.g., GitHub, database, or other external data source
-2. "Set up hooks" — Configured hooks in ~/.claude/settings.json
+2. "Set up hooks" — Configured hooks in a settings file (e.g. ~/.claude/settings.json or .claude/settings.json)
 3. "Created/used subagents" — Used .claude/agents/ for task delegation
 4. "Used print mode (claude -p)" — Used `claude -p` for non-interactive or CI/CD use
 
@@ -67,7 +67,7 @@ Options:
 1. "Created a custom slash command or skill" — Written a SKILL.md file with frontmatter, or created .claude/commands/ files
 2. "Used dynamic context in commands" — Used `$ARGUMENTS`, `$0`/`$1`, backtick `!command` syntax, or `@file` references in skill/command files
 3. "Set up project + personal memory" — Created both a project CLAUDE.md and personal ~/.claude/CLAUDE.md (or CLAUDE.local.md)
-4. "Used memory hierarchy features" — Understand the 7-level priority order, used .claude/rules/ directory, path-specific rules, or @import syntax
+4. "Used memory hierarchy features" — Understand how the 7 memory locations are concatenated into context (loaded root-down, CLAUDE.local.md appended after CLAUDE.md at each level, subdirectory files loaded on demand), used .claude/rules/ directory, path-specific rules, or @import syntax
 
 **Scoring for Round 1:**
 - Options 1-2 map to **Slash Commands** (0-2 points)
@@ -82,7 +82,7 @@ Options:
 1. "Installed and used an auto-invoked skill" — A skill that triggers automatically based on its description, without manual /command invocation
 2. "Controlled skill invocation behavior" — Used `disable-model-invocation`, `user-invocable`, or `context: fork` with agent field in SKILL.md frontmatter
 3. "Set up a PreToolUse or PostToolUse hook" — Configured a hook that runs before/after tool execution (e.g., command validator, auto-formatter)
-4. "Used advanced hook features" — Configured prompt-type hooks, component-scoped hooks in SKILL.md, HTTP hooks, or hooks with custom JSON output (updatedInput, systemMessage)
+4. "Used advanced hook features" — Configured prompt-type hooks, skill-frontmatter hooks, HTTP hooks, or hooks with custom JSON output (updatedInput, systemMessage)
 
 **Scoring for Round 2:**
 - Options 1-2 map to **Skills** (0-2 points)
@@ -97,7 +97,7 @@ Options:
 1. "Connected an MCP server and used its tools" — e.g., GitHub MCP for PRs/issues, database MCP for queries, or any external data source
 2. "Used advanced MCP features" — Project-scope .mcp.json, OAuth authentication, MCP resources with @mentions, Tool Search, or `claude mcp serve`
 3. "Created or configured custom subagents" — Defined agents in .claude/agents/ with custom tools, model, or permissions
-4. "Used advanced subagent features" — Worktree isolation, persistent agent memory, background tasks with Ctrl+B, agent allowlists with `Task(agent_name)`, or agent teams
+4. "Used advanced subagent features" — Worktree isolation, persistent agent memory, background tasks with Ctrl+B, agent allowlists with `Agent(agent_type)` for an agent run as the main thread with `claude --agent` (the `Task(...)` form is a back-compat alias), or agent teams
 
 **Scoring for Round 3:**
 - Options 1-2 map to **MCP** (0-2 points)
@@ -109,14 +109,14 @@ Options:
 
 "Which of these have you done? Select all that apply."
 Options:
-1. "Used checkpoints for safe experimentation" — Created checkpoints, used Esc+Esc or /rewind, restored code and/or conversation, or used Summarize option
-2. "Used planning mode or extended thinking" — Activated planning via /plan, Shift+Tab, or --permission-mode plan; toggled extended thinking with Alt+T/Option+T
-3. "Configured permission modes" — Used acceptEdits, plan, dontAsk, or bypassPermissions mode via CLI flags, keyboard shortcuts, or settings
-4. "Used remote/desktop/web features" — Used `claude remote-control`, `claude --remote`, `/teleport`, `/desktop`, or worktrees with `claude -w`
+1. "Used checkpoints for safe experimentation" — Rewound to a checkpoint with Esc+Esc or /rewind, restored code and/or conversation, or used either Summarize option (summarize from here / summarize up to here)
+2. "Used planning mode or extended thinking" — Activated planning via /plan, Shift+Tab, or --permission-mode plan; toggled extended thinking with Alt+T/Option+T on a model that allows it, or set reasoning depth with `/effort`
+3. "Configured permission modes" — Used any of the six modes — manual (config value `default`; shown as Manual since v2.1.200), acceptEdits, plan, auto, dontAsk, or bypassPermissions — via CLI flags, keyboard shortcuts, or settings (just starting in the built-in auto default doesn't count)
+4. "Used remote/desktop/web features" — Used `claude --remote-control`, `claude --cloud`, `/teleport`, `/desktop`, or worktrees with `claude -w`
 
 **Scoring for Round 4:**
 - Option 1 maps to **Checkpoints** (0-1 point)
-- Options 2-4 map to **Advanced Features** (0-3 points, cap at 2)
+- Options 2-4 map to **Advanced Features** (0-3 points)
 
 ---
 
@@ -125,7 +125,7 @@ Options:
 "Which of these have you done? Select all that apply."
 Options:
 1. "Installed or created a plugin" — Used a bundled plugin from marketplace, or created a .claude-plugin/ directory with plugin.json manifest
-2. "Used plugin advanced features" — Plugin hooks, plugin MCP servers, LSP configuration, plugin namespaced commands, or --plugin-dir flag for testing
+2. "Used plugin advanced features" — Plugin skills (`skills/` — the preferred form; namespaced `commands/` is legacy but still works), plugin hooks, plugin MCP servers, LSP configuration, or --plugin-dir flag for testing
 3. "Used print mode in scripts or CI/CD" — Used `claude -p` with --output-format json, --max-turns, piped input, or integrated into GitHub Actions / CI pipelines
 4. "Used advanced CLI features" — Session resumption (-c/-r), --agents flag, --json-schema for structured output, --fallback-model, --from-pr, or batch processing loops
 
@@ -174,7 +174,7 @@ You checked **N/8** items.
 
 #### 3B: For Deep Assessment
 
-Calculate per-topic scores from the 5 rounds. Each topic gets 0-2 points. Then present:
+Calculate per-topic scores from the 5 rounds. Each topic gets 0-2 points, except Advanced Features (0-3) and Checkpoints (0-1). Then present:
 
 ```markdown
 ## Claude Code Skill Assessment Results
@@ -196,7 +196,7 @@ Calculate per-topic scores from the 5 rounds. Each topic gets 0-2 points. Then p
 | MCP | N/2 | [None/Basic/Proficient] | [Learn/Review/Mastered] |
 | Subagents | N/2 | [None/Basic/Proficient] | [Learn/Review/Mastered] |
 | Checkpoints | N/1 | [None/Proficient] | [Learn/Mastered] |
-| Advanced Features | N/2 | [None/Basic/Proficient] | [Learn/Review/Mastered] |
+| Advanced Features | N/3 | [None/Basic/Proficient] | [Learn/Review/Mastered] |
 | Plugins | N/2 | [None/Basic/Proficient] | [Learn/Review/Mastered] |
 | CLI | N/2 | [None/Basic/Proficient] | [Learn/Review/Mastered] |
 
@@ -287,27 +287,27 @@ Use these specific recommendations when a topic is a gap:
 - Done when: You can create a custom skill with arguments and dynamic context
 
 **Slash Commands (score 1 — review)**:
-- Focus on: Dynamic context with `!`backtick`` syntax, `@file` references, `disable-model-invocation` vs `user-invocable` control
+- Focus on: Dynamic context with the ``!`command` `` syntax, `@file` references, `disable-model-invocation` vs `user-invocable` control
 - Done when: You can create a skill that injects live command output and controls its own invocation behavior
 
 **Memory (score 0)**:
 - Tutorial: [02-memory/](../../../02-memory/)
-- Focus on: CLAUDE.md creation, `/init` and `/memory` commands, `#` prefix for quick updates
+- Focus on: CLAUDE.md creation, `/init` and `/memory` commands, and the difference from auto memory (asking Claude to remember something saves it to auto memory; to put it in CLAUDE.md, say "add this to CLAUDE.md" or edit via `/memory` — the old `#` shortcut was removed)
 - Key exercise: Create a project CLAUDE.md with your coding standards
 - Done when: Claude remembers your preferences across sessions
 
 **Memory (score 1 — review)**:
-- Focus on: 7-level hierarchy and priority order, .claude/rules/ directory with path-specific rules, `@import` syntax (max depth 5), Auto Memory MEMORY.md (200-line limit)
-- Done when: You have modular rules for different directories and understand the full hierarchy
+- Focus on: the 7 memory locations and how they are concatenated into context (loaded root-down, not overridden), .claude/rules/ directory with path-specific rules, `@import` syntax (max depth 4), Auto Memory MEMORY.md (Claude loads its first 200 lines or 25 KB, whichever comes first — a load cap, not a file-size limit), on-demand files (subdirectory CLAUDE.md, path-scoped rules) truncated past a per-file size limit since v2.1.309
+- Done when: You have modular rules for different directories and understand how every memory file is concatenated into context
 
 **Skills (score 0)**:
 - Tutorial: [03-skills/](../../../03-skills/)
 - Focus on: SKILL.md format, auto-invocation via description field, progressive disclosure (3 loading levels)
-- Key exercise: Install the code-review skill and verify it auto-triggers
+- Key exercise: Install `03-skills/code-review-specialist` and verify it auto-triggers
 - Done when: A skill automatically activates based on conversation context
 
 **Skills (score 1 — review)**:
-- Focus on: `context: fork` with `agent` field for subagent execution, `disable-model-invocation` vs `user-invocable`, 2% context budget, bundled resources (scripts/, references/, assets/)
+- Focus on: `context: fork` with `agent` field for subagent execution, `disable-model-invocation` vs `user-invocable`, the skill-listing budget (1% of the context window, fallback 8,000 characters; each entry's `description` + `when_to_use` capped at 1,536 characters by default via `skillListingMaxDescChars`), bundled resources (scripts/, references/, assets/)
 - Done when: You can create a skill that runs in a subagent with forked context
 
 **Hooks (score 0)**:
@@ -317,53 +317,53 @@ Use these specific recommendations when a topic is a gap:
 - Done when: A hook blocks dangerous commands before execution
 
 **Hooks (score 1 — review)**:
-- Focus on: All 25 hook events (including PostToolUseFailure, StopFailure, TaskCreated, CwdChanged, FileChanged, PostCompact, Elicitation, ElicitationResult), 4 hook types (command, http, prompt, agent), component-scoped hooks in SKILL.md frontmatter, HTTP hooks with allowedEnvVars, `CLAUDE_ENV_FILE` for SessionStart/CwdChanged/FileChanged
-- Done when: You can create a prompt-based Stop hook and a component-scoped hook in a skill
+- Focus on: All 33 hook events (including PostToolUseFailure, StopFailure, TaskCreated, CwdChanged, FileChanged, PostCompact, Elicitation, ElicitationResult, Setup, UserPromptExpansion, MessageDisplay, PreModelSwitch, PostModelSwitch — the last two added in v2.1.251), 5 hook types (command, http, mcp_tool, prompt, agent — agent hooks are experimental and may change), hooks in SKILL.md frontmatter (they persist for the session after invocation; subagent-frontmatter hooks end with the subagent), HTTP hooks with allowedEnvVars, `onFailure: "block"` to block the action when a command or HTTP hook fails (v2.1.295+), `CLAUDE_ENV_FILE` for SessionStart, Setup, CwdChanged and FileChanged
+- Done when: You can create a prompt-based Stop hook and a hook in a skill's frontmatter (and you know it stays registered for the rest of the session)
 
 **MCP (score 0)**:
 - Tutorial: [05-mcp/](../../../05-mcp/)
-- Focus on: `claude mcp add` command, transport types (HTTP recommended), GitHub MCP setup, environment variable expansion
+- Focus on: `claude mcp add` command, transport types (`http` recommended, `stdio`, `ws` for push-style servers, and the deprecated `sse` — note `--transport` does not accept `ws`, so add WebSocket servers with `claude mcp add-json`), GitHub MCP setup, environment variable expansion
 - Key exercise: Add GitHub MCP server and query PRs
 - Done when: You can query live data from an external service via MCP
 
 **MCP (score 1 — review)**:
-- Focus on: Project-scope .mcp.json (requires team approval), OAuth 2.0 auth, MCP resources with `@server:resource` mentions, Tool Search (ENABLE_TOOL_SEARCH), `claude mcp serve`, output limits (10k/25k/50k)
-- Done when: You have a project .mcp.json and understand Tool Search auto mode
+- Focus on: Project-scope .mcp.json (each user approves it on first use; workspace trust applies), OAuth 2.0 auth, MCP resources with `@server:resource` mentions, Tool Search (ENABLE_TOOL_SEARCH; on by default, including behind a custom `ANTHROPIC_BASE_URL` gateway since v2.1.304), `claude mcp serve`, output limits (10,000 tokens warning; 25,000 tokens default max via `MAX_MCP_OUTPUT_TOKENS`; 50,000 characters disk-persistence threshold)
+- Done when: You have a project .mcp.json and understand how tool search defers MCP tools by default and what `ENABLE_TOOL_SEARCH=auto`/`false` change
 
 **Subagents (score 0)**:
 - Tutorial: [04-subagents/](../../../04-subagents/)
-- Focus on: Agent file format (.claude/agents/*.md), built-in agents (general-purpose, Plan, Explore), tools/model/permissionMode config
+- Focus on: Agent file format (.claude/agents/*.md), built-in agents (Explore, Plan, general-purpose, claude, statusline-setup, claude-code-guide), tools/model/permissionMode config, spawn limits (depth default 3 since v2.1.219, concurrency default 20, and the 200-per-session spawn cap removed in v2.1.224)
 - Key exercise: Create a code-reviewer subagent and test delegation
 - Done when: Claude delegates code review to your custom agent
 
 **Subagents (score 1 — review)**:
-- Focus on: Worktree isolation (`isolation: worktree`), persistent agent memory (`memory` field with scopes), background agents (Ctrl+B/Ctrl+F), agent allowlists with `Task(agent_name)`, agent teams (`--teammate-mode`)
+- Focus on: Worktree isolation (`isolation: worktree`), persistent agent memory (`memory` field with scopes), background agents (Ctrl+B to background; Ctrl+X Ctrl+K twice to stop them all), agent allowlists with `Agent(agent_type)` for a main-thread agent started with `claude --agent` (`Task(...)` remains a back-compat alias; in a subagent's own `tools` the type list is ignored), agent teams (`--teammate-mode`)
 - Done when: You have a subagent with persistent memory running in worktree isolation
 
 **Checkpoints (score 0)**:
 - Tutorial: [08-checkpoints/](../../../08-checkpoints/)
-- Focus on: Esc+Esc and /rewind access, 5 rewind options (restore code+conversation, restore conversation, restore code, summarize, cancel), limitations (bash filesystem ops not tracked)
+- Focus on: Esc+Esc and /rewind access, 6 rewind options (restore code and conversation, restore conversation, restore code, summarize from here, summarize up to here, never mind), limitations — files changed only by Bash commands are untracked (once Claude has edited a file with its file editing tools, `/rewind` also undoes changes that Bash commands make to that file afterward; since v2.1.309, `sed -i` is treated like any other Bash edit), subagent edits (except a foreground `context: fork` skill), edits made outside Claude Code are untracked, and symlinked/hard-linked paths are skipped on restore
 - Key exercise: Make experimental changes, then rewind to restore
 - Done when: You can confidently experiment knowing you can rewind
 
 **Advanced Features (score 0)**:
 - Tutorial: [09-advanced-features/](../../../09-advanced-features/)
-- Focus on: Planning mode (/plan or Shift+Tab), permission modes (5 types), extended thinking (Alt+T toggle)
+- Focus on: Planning mode (/plan or Shift+Tab), permission modes (6 types: manual — config value `default`, shown as Manual since v2.1.200 — acceptEdits, plan, auto, dontAsk, bypassPermissions), extended thinking (Alt+T/Option+T toggle — no effect on Opus 5.5 (the default model), Sonnet 5.5, Haiku 5.5, or the Fable models, where thinking stays on)
 - Key exercise: Use planning mode to design a feature, then implement it
 - Done when: You can switch between planning and implementation modes fluently
 
 **Advanced Features (score 1 — review)**:
-- Focus on: Remote control (`claude remote-control`), web sessions (`claude --remote`), desktop handoff (`/desktop`), worktrees (`claude -w`), task lists (Ctrl+T), managed settings for enterprise
+- Focus on: Remote control (`claude --remote-control`, alias `--rc`), web sessions (`claude --cloud`; `--remote` is a deprecated alias), desktop handoff (`/desktop`), worktrees (`claude -w`), task lists (Ctrl+T), managed settings for enterprise
 - Done when: You can hand off sessions between CLI, web, and desktop
 
 **Plugins (score 0)**:
 - Tutorial: [07-plugins/](../../../07-plugins/)
-- Focus on: Plugin structure (.claude-plugin/plugin.json), what plugins bundle (commands, agents, MCP, hooks, settings), installation from marketplace
+- Focus on: Plugin structure (.claude-plugin/plugin.json), what plugins bundle (skills, agents, MCP, hooks, settings — plus the legacy `commands/` directory, which still works but `skills/` is preferred for new plugins), installation from marketplace (`/plugin install`, or `claude plugin install <plugin> --marketplace <source>` from the shell)
 - Key exercise: Install a plugin and explore its components
 - Done when: You understand when to use a plugin vs standalone components
 
 **Plugins (score 1 — review)**:
-- Focus on: Creating plugin.json manifest, plugin hooks (hooks/hooks.json), LSP configuration (.lsp.json), `${CLAUDE_PLUGIN_ROOT}` variable, --plugin-dir for testing, marketplace publishing
+- Focus on: Creating plugin.json manifest, plugin hooks (hooks/hooks.json), LSP configuration (.lsp.json), `${CLAUDE_PLUGIN_ROOT}` variable, --plugin-dir for testing, marketplace publishing, mods (hooks modules shipped in a plugin that add panes, commands, and tool-call rules — v2.1.287+)
 - Done when: You can create and test a plugin for your team
 
 **CLI (score 0)**:
@@ -373,7 +373,7 @@ Use these specific recommendations when a topic is a gap:
 - Done when: You can use Claude non-interactively in a script
 
 **CLI (score 1 — review)**:
-- Focus on: --agents flag with JSON config, --json-schema for structured output, --fallback-model, --from-pr, --strict-mcp-config, batch processing with for loops, `claude mcp serve`
+- Focus on: --agents flag with JSON config, --json-schema for structured output, --fallback-model, --from-pr, --strict-mcp-config, `--permission-mode`/`--allowedTools` for `claude -p` (a run with no mode set starts in Manual mode, config value `default`, and denies calls that need approval), batch processing with for loops, `claude mcp serve`
 - Done when: You have a CI/CD script that uses Claude with structured JSON output
 
 ---

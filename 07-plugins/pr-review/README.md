@@ -18,7 +18,7 @@ Complete PR review workflow with security, testing, and documentation checks.
 ## Installation
 
 ```bash
-/plugin install pr-review
+claude --plugin-dir ./07-plugins/pr-review
 ```
 
 ## What's Included
@@ -58,7 +58,7 @@ Complete PR review workflow with security, testing, and documentation checks.
 
 ## Requirements
 
-- Claude Code 1.0+
+- Claude Code 2.1+
 - GitHub access
 - Git repository
 
@@ -89,3 +89,16 @@ Result:
 ✅ Performance: No significant impact
 📝 Recommendations: Add tests for edge cases
 ```
+
+---
+
+**Last Updated**: October 18, 2026
+**Claude Code Version**: 2.1.302
+**Sources**:
+- https://code.claude.com/docs/en/plugins
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.131
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.138
+- https://code.claude.com/docs/en/model-config
+- https://code.claude.com/docs/en/plugins/cli-reference
+- https://code.claude.com/docs/en/plugins/install
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

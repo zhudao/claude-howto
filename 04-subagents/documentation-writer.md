@@ -61,7 +61,7 @@ For each documentation created:
 
 ## API Documentation Example
 
-```markdown
+````markdown
 ## GET /api/users/:id
 
 Retrieves a user by their unique identifier.
@@ -95,4 +95,11 @@ Retrieves a user by their unique identifier.
 curl -X GET https://api.example.com/api/users/abc123 \
   -H "Authorization: Bearer <token>"
 ```
-```
+````
+
+---
+**Last Updated**: August 4, 2026
+**Claude Code Version**: 2.1.220
+**Sources**:
+- https://code.claude.com/docs/en/sub-agents
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

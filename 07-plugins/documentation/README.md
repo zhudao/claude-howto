@@ -18,7 +18,7 @@ Comprehensive documentation generation and maintenance for your project.
 ## Installation
 
 ```bash
-/plugin install documentation
+claude --plugin-dir ./07-plugins/documentation
 ```
 
 ## What's Included
@@ -66,7 +66,7 @@ Comprehensive documentation generation and maintenance for your project.
 
 ## Requirements
 
-- Claude Code 1.0+
+- Claude Code 2.1+
 - GitHub access (optional)
 
 ## Example Workflow
@@ -117,3 +117,16 @@ export GITHUB_TOKEN="your_github_token"
 - Include practical examples
 - Validate regularly
 - Use templates for consistency
+
+---
+
+**Last Updated**: October 18, 2026
+**Claude Code Version**: 2.1.302
+**Sources**:
+- https://code.claude.com/docs/en/plugins
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.131
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.138
+- https://code.claude.com/docs/en/model-config
+- https://code.claude.com/docs/en/plugins/cli-reference
+- https://code.claude.com/docs/en/plugins/install
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

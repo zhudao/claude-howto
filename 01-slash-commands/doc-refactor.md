@@ -1,7 +1,6 @@
 ---
-name: Documentation Refactor
+name: doc-refactor
 description: Restructure project documentation for clarity and accessibility
-tags: documentation, refactoring, organization
 ---
 
 # Documentation Refactor
@@ -22,3 +21,10 @@ Refactor project documentation structure adapted to project type:
 7. **Use Mermaid** for all diagrams (architecture, flows, schemas)
 
 Keep docs concise, scannable, and contextual to project type.
+
+---
+**Last Updated**: August 4, 2026
+**Claude Code Version**: 2.1.220
+**Sources**:
+- https://code.claude.com/docs/en/commands
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

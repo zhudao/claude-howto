@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -11,17 +14,135 @@ import pytest
 # Fixtures are imported from conftest.py automatically by pytest
 # Import from parent directory (handled by conftest.py sys.path)
 from build_epub import (
+    EPUB_DIAGRAM_FONT,
     BuildState,
     ChapterCollector,
     EPUBConfig,
+    MermaidRenderer,
+    MermaidRenderError,
     ValidationError,
     create_chapter_html,
     extract_all_mermaid_blocks,
+    flatten_svg_vars,
     get_chapter_order,
-    sanitize_mermaid,
     setup_logging,
     validate_inputs,
 )
+from pele_renderer import (
+    PeleDiagramError,
+    PeleHelperError,
+    PeleResult,
+    PeleUnavailableError,
+)
+
+SVG_NS = "{http://www.w3.org/2000/svg}"
+
+# Real Pele 1.6.0 output for `graph TD; A[ユーザー] --> B[エージェント]`.
+PELE_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" '
+    'viewBox="0 0 148 160" width="148" height="160" style="max-width:100%;'
+    "height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);"
+    "--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);"
+    "--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);"
+    "--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);"
+    "color:var(--_fg);--_r:var(--pele-radius,4px);"
+    "--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;"
+    "letter-spacing:normal;word-spacing:normal;text-transform:none;"
+    'direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" '
+    'role="graphics-document document" aria-roledescription="flowchart">'
+    '<g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round">'
+    '<g class="pele-edge" data-id="L_A_B_0"><path d="M74,56L74,97"/>'
+    '<path class="pele-marker" d="M74,104L70.64,96L77.36,96Z" fill="var(--_l)" '
+    'stroke="none"/></g></g><g class="pele-nodes">'
+    '<g class="pele-node pele-shape-rect" data-id="A" transform="translate(74,32)">'
+    '<rect x="-50" y="-24" width="100" height="48" fill="var(--_s)" '
+    'stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" '
+    'y="5.6" text-anchor="middle">ユーザー</text></g>'
+    '<g class="pele-node pele-shape-rect" data-id="B" transform="translate(74,128)">'
+    '<rect x="-66" y="-24" width="132" height="48" fill="var(--_s)" '
+    'stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" '
+    'y="5.6" text-anchor="middle">エージェント</text></g></g></svg>'
+)
+
+# Pele-shaped SVG with labels that look like CSS (`--model: opus`, `;`), XML
+# entities, a Mermaid `style` statement after the radius, and a cluster title
+# halo drawn with color-mix().
+ADVERSARIAL_LABELS = [
+    "claude --model: opus",
+    "a; b & c",
+    "x > y",
+    '"quoted"',
+    "--resume: x",
+    "Session",
+]
+ADVERSARIAL_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" '
+    'viewBox="0 0 745 124" width="745" height="124" style="max-width:100%;'
+    "height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);"
+    "--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);"
+    "--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);"
+    "--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);"
+    "color:var(--_fg);--_r:var(--pele-radius,4px);"
+    "--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;"
+    'font-family:var(--pele-font,sans-serif)" fill="var(--_fg)">'
+    '<g class="pele-clusters"><g class="pele-cluster" data-id="S">'
+    '<rect x="8" y="8" width="466.43" height="108" fill="var(--_a)" '
+    'fill-opacity="0.5" stroke="var(--_b)" style="rx:var(--_r)"/>'
+    '<text fill="none" stroke="color-mix(in srgb,var(--_a) 50%,var(--_bg))" '
+    'stroke-width="5" x="50.46" y="33.6">Session</text></g></g>'
+    '<g class="pele-edge-labels" font-size="14"><g class="pele-edge-label">'
+    '<rect x="235.89" y="61.5" width="78.78" height="21" rx="3" '
+    'fill="var(--_bg)"/><text x="275.28" y="76.9">--resume: x</text></g></g>'
+    '<g class="pele-nodes"><g class="pele-node" data-id="A">'
+    '<rect x="-92.7" y="-24" width="185.39" height="48" fill="var(--_s)" '
+    'stroke="var(--_b)" style="rx:var(--_r);fill:#e1f5fe;stroke:#333;"/>'
+    '<text class="pele-label">claude --model: opus</text></g>'
+    '<g class="pele-node" data-id="B"><rect fill="var(--_s)" '
+    'style="rx:var(--_r)"/><text class="pele-label">a; b &amp; c</text></g>'
+    '<g class="pele-node" data-id="C"><text class="pele-label">x &gt; y</text></g>'
+    '<g class="pele-node" data-id="D"><text class="pele-label">&quot;quoted&quot;'
+    "</text></g></g></svg>"
+)
+
+# Real Pele 1.6.0 pie output (trimmed to two slices). Series colours use
+# numbered custom properties (`--pele-series-1`), as do timeline, mindmap and
+# journey diagrams.
+PIE_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" class="pele pele-pie" '
+    'viewBox="0 0 397 352" width="397" height="352" style="max-width:100%;'
+    "height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);"
+    "--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);"
+    "--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);"
+    "--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);"
+    "color:var(--_fg);--_tw:var(--pele-title-weight,bold);"
+    "--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;"
+    "letter-spacing:normal;word-spacing:normal;text-transform:none;"
+    'direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" '
+    'role="graphics-document document" aria-roledescription="pie">'
+    '<text class="pele-title" font-weight="var(--_tw)" text-anchor="middle" '
+    'xml:space="preserve"><tspan x="198.5" y="25.6">Pets</tspan></text>'
+    '<g class="pele-slices" transform="translate(156,196)" stroke="var(--_bg)" '
+    'stroke-width="1" stroke-linejoin="round">'
+    '<path class="pele-slice" data-id="Dogs" '
+    'd="M0,0L0,-120A120,120 0 1 1 -115.39,-32.93Z" '
+    'fill="var(--pele-series-1,#4c78a8)"/>'
+    '<path class="pele-slice" data-id="Cats" '
+    'd="M0,0L-115.39,-32.93A120,120 0 0 1 0,-120Z" '
+    'fill="var(--pele-series-2,#f58518)"/></g>'
+    '<g class="pele-legend" font-size="14">'
+    '<g class="pele-legend-item" data-id="Dogs"><rect x="336" y="164" '
+    'width="12" height="12" rx="2" fill="var(--pele-series-1,#4c78a8)"/>'
+    '<text x="372.34" y="174.9" text-anchor="middle">Dogs</text></g></g></svg>'
+)
+
+
+def _attribute_values(svg: str) -> list[str]:
+    return [v for el in ET.fromstring(svg).iter() for v in el.attrib.values()]
+
+
+def _texts(svg: str) -> list[str]:
+    return [el.text or "" for el in ET.fromstring(svg).iter(f"{SVG_NS}text")]
+
 
 # =============================================================================
 # BuildState Tests
@@ -92,9 +213,6 @@ class TestEPUBConfig:
         assert config.title == "Claude Code How-To Guide"
         assert config.language == "en"
         assert config.author == "Claude Code Community"
-        assert config.request_timeout == 30.0
-        assert config.max_concurrent_requests == 10
-        assert config.max_retries == 3
 
     def test_custom_values(self, tmp_path: Path) -> None:
         """Test that custom values override defaults."""
@@ -102,12 +220,8 @@ class TestEPUBConfig:
             root_path=tmp_path,
             output_path=tmp_path / "out.epub",
             title="Custom Title",
-            request_timeout=60.0,
-            max_concurrent_requests=5,
         )
         assert config.title == "Custom Title"
-        assert config.request_timeout == 60.0
-        assert config.max_concurrent_requests == 5
 
 
 # =============================================================================
@@ -174,16 +288,35 @@ class TestValidation:
 class TestMermaidProcessing:
     """Tests for Mermaid diagram processing."""
 
-    def test_sanitize_mermaid_numbered_list(self) -> None:
-        """Test that numbered lists in brackets are escaped."""
-        input_code = 'A["1. First item"] --> B["2. Second item"]'
-        expected = 'A["1\\. First item"] --> B["2\\. Second item"]'
-        assert sanitize_mermaid(input_code) == expected
+    def test_numbered_label_passes_through_unchanged(
+        self, tmp_path: Path, logger: logging.Logger
+    ) -> None:
+        """`[1. Load file]` reaches Pele as written (no backslash escaping).
 
-    def test_sanitize_mermaid_no_change(self) -> None:
-        """Test that code without numbered lists is unchanged."""
-        input_code = "A --> B --> C"
-        assert sanitize_mermaid(input_code) == input_code
+        Pele renders `1. Load file` correctly but would draw an escape
+        backslash literally, so the source must not be rewritten.
+        """
+        md_file = tmp_path / "steps.md"
+        md_file.write_text(
+            '```mermaid\ngraph TD\n    A["1. Load file"] --> B[2. Parse]\n```\n',
+            encoding="utf-8",
+        )
+
+        source = 'graph TD\n    A["1. Load file"] --> B[2. Parse]'
+
+        diagrams = extract_all_mermaid_blocks([(md_file, "Steps")], logger)
+        assert diagrams == [(1, source)]
+
+        state = BuildState()
+        config = EPUBConfig(root_path=tmp_path, output_path=tmp_path / "o.epub")
+        with patch(
+            "build_epub.render_diagrams",
+            return_value=[PeleResult(svg=PELE_SVG, diagram_type="flowchart")],
+        ) as mock_render:
+            MermaidRenderer(config, state, logger).render_all(diagrams)
+
+        assert mock_render.call_args.args[0] == [source]
+        assert list(state.mermaid_cache) == [source]
 
     def test_extract_mermaid_blocks(
         self, tmp_path: Path, logger: logging.Logger
@@ -376,6 +509,220 @@ class TestLogging:
 
 
 # =============================================================================
+# MermaidRenderer Tests
+# =============================================================================
+
+
+class TestMermaidRenderer:
+    """Tests for the Pele-backed MermaidRenderer (render_diagrams mocked)."""
+
+    def _make_renderer(
+        self, tmp_path: Path, state: BuildState, logger: logging.Logger
+    ) -> MermaidRenderer:
+        config = EPUBConfig(root_path=tmp_path, output_path=tmp_path / "out.epub")
+        return MermaidRenderer(config, state, logger)
+
+    def test_render_all_success(
+        self, tmp_path: Path, state: BuildState, logger: logging.Logger
+    ) -> None:
+        """Pele SVG is flattened, encoded and cached as mermaid_N.svg."""
+        renderer = self._make_renderer(tmp_path, state, logger)
+
+        with patch(
+            "build_epub.render_diagrams",
+            return_value=[PeleResult(svg=PELE_SVG, diagram_type="flowchart")],
+        ):
+            results = renderer.render_all([(1, "graph TD\n  A --> B\n")])
+
+        assert list(results) == ["graph TD\n  A --> B"]
+        svg_bytes, img_name = results["graph TD\n  A --> B"]
+        assert img_name == "mermaid_1.svg"
+        svg = svg_bytes.decode("utf-8")
+        assert "var(" not in svg
+        assert "ユーザー" in svg
+        assert state.mermaid_cache["graph TD\n  A --> B"] == (svg_bytes, img_name)
+
+    def test_render_all_diagram_error(
+        self, tmp_path: Path, state: BuildState, logger: logging.Logger
+    ) -> None:
+        """A diagram Pele rejects fails the build with its code and line."""
+        renderer = self._make_renderer(tmp_path, state, logger)
+        error = PeleDiagramError("syntax", "Expecting 'NODE_STRING'", 3, 1)
+
+        with (
+            patch(
+                "build_epub.render_diagrams",
+                return_value=[
+                    PeleResult(svg=PELE_SVG, diagram_type="flowchart"),
+                    PeleResult(svg=None, diagram_type=None, error=error),
+                ],
+            ),
+            pytest.raises(
+                MermaidRenderError,
+                match=r"Pele failed for diagram 7: \[syntax\] .*diagram line 3",
+            ),
+        ):
+            renderer.render_all([(1, "graph TD\n  A --> B"), (7, "graph TD\n  A -->")])
+
+    def test_render_all_pele_unavailable(
+        self, tmp_path: Path, state: BuildState, logger: logging.Logger
+    ) -> None:
+        """Missing Node.js surfaces as MermaidRenderError with the hint."""
+        renderer = self._make_renderer(tmp_path, state, logger)
+
+        with (
+            patch(
+                "build_epub.render_diagrams",
+                side_effect=PeleUnavailableError("node not found on PATH"),
+            ),
+            pytest.raises(MermaidRenderError, match=r"Node\.js >= 20"),
+        ):
+            renderer.render_all([(1, "graph TD\n  A --> B")])
+
+    def test_render_all_helper_failure(
+        self, tmp_path: Path, state: BuildState, logger: logging.Logger
+    ) -> None:
+        """A crashed or timed-out helper raises MermaidRenderError."""
+        renderer = self._make_renderer(tmp_path, state, logger)
+
+        with (
+            patch(
+                "build_epub.render_diagrams",
+                side_effect=PeleHelperError("Pele helper timed out after 120s"),
+            ),
+            pytest.raises(MermaidRenderError, match="timed out"),
+        ):
+            renderer.render_all([(1, "graph TD\n  A --> B")])
+
+    def test_render_all_deduplication(
+        self, tmp_path: Path, state: BuildState, logger: logging.Logger
+    ) -> None:
+        """Identical diagrams are rendered once, in a single Pele call."""
+        renderer = self._make_renderer(tmp_path, state, logger)
+        same_code = "graph TD\n  A --> B"
+
+        with patch(
+            "build_epub.render_diagrams",
+            return_value=[PeleResult(svg=PELE_SVG, diagram_type="flowchart")],
+        ) as mock_render:
+            results = renderer.render_all([(1, same_code), (2, same_code + "\n")])
+
+        assert mock_render.call_count == 1
+        assert mock_render.call_args.args[0] == [same_code]
+        assert len(results) == 1
+
+
+# =============================================================================
+# SVG flattening (EPUB readers lack CSS custom properties)
+# =============================================================================
+
+
+class TestFlattenSvgVars:
+    @pytest.mark.parametrize(
+        "svg", [PELE_SVG, ADVERSARIAL_SVG, PIE_SVG], ids=["real", "adv", "series"]
+    )
+    def test_no_css_variables_left_and_valid_xml(self, svg: str) -> None:
+        out = flatten_svg_vars(svg)
+
+        ET.fromstring(out)  # still well-formed XML
+        for value in _attribute_values(out):
+            assert "var(" not in value
+            assert "--_" not in value
+            assert "color-mix" not in value
+
+    def test_text_nodes_are_untouched(self) -> None:
+        out = flatten_svg_vars(ADVERSARIAL_SVG)
+
+        assert _texts(out) == _texts(ADVERSARIAL_SVG)
+        assert sorted(_texts(out)) == sorted(ADVERSARIAL_LABELS)
+
+    def test_aliases_resolve_to_pele_fallbacks(self) -> None:
+        root = ET.fromstring(flatten_svg_vars(ADVERSARIAL_SVG))
+
+        assert root.get("fill") == "#1f1f1f"
+        style = root.get("style", "")
+        assert "color:#1f1f1f" in style
+        assert "max-width:100%" in style
+        halo = next(t for t in root.iter(f"{SVG_NS}text") if t.get("stroke"))
+        # color-mix(in srgb, #e6e6e6 50%, #fff)
+        assert halo.get("stroke") == "#f2f2f2"
+
+    def test_numbered_series_variables_resolve(self) -> None:
+        root = ET.fromstring(flatten_svg_vars(PIE_SVG))
+        slices = [p for p in root.iter(f"{SVG_NS}path") if p.get("data-id")]
+
+        assert [p.get("fill") for p in slices] == ["#4c78a8", "#f58518"]
+        title = next(root.iter(f"{SVG_NS}text"))
+        assert title.get("font-weight") == "bold"
+        themed = ET.fromstring(
+            flatten_svg_vars(PIE_SVG, {"--pele-series-1": "#123456"})
+        )
+        assert {
+            r.get("fill") for r in themed.iter(f"{SVG_NS}rect") if r.get("rx") == "2"
+        } == {"#123456"}
+
+    def test_theme_override_applied(self) -> None:
+        root = ET.fromstring(
+            flatten_svg_vars(
+                PELE_SVG, {"--pele-surface": "#abcdef", "--pele-bg": "#000"}
+            )
+        )
+
+        node_rects = list(root.iter(f"{SVG_NS}rect"))[1:]
+        assert {r.get("fill") for r in node_rects} == {"#abcdef"}
+        assert root[0].get("fill") == "#000"
+
+    def test_radius_moves_to_attribute_keeping_other_declarations(self) -> None:
+        root = ET.fromstring(flatten_svg_vars(ADVERSARIAL_SVG))
+        node_a = next(g for g in root.iter(f"{SVG_NS}g") if g.get("data-id") == "A")
+        rect = node_a.find(f"{SVG_NS}rect")
+
+        assert rect is not None
+        assert rect.get("rx") == "4"
+        assert rect.get("style") == "fill:#e1f5fe;stroke:#333;"
+        node_b = next(g for g in root.iter(f"{SVG_NS}g") if g.get("data-id") == "B")
+        rect_b = node_b.find(f"{SVG_NS}rect")
+        assert rect_b is not None
+        assert rect_b.get("rx") == "4"
+        assert "style" not in rect_b.attrib
+
+    def test_font_stack_replaces_pele_font(self) -> None:
+        root = ET.fromstring(flatten_svg_vars(PELE_SVG))
+
+        assert f"font-family:{EPUB_DIAGRAM_FONT}" in root.get("style", "")
+
+    def test_opaque_background_rect_is_first_child(self) -> None:
+        root = ET.fromstring(flatten_svg_vars(PELE_SVG))
+
+        first = root[0]
+        assert first.tag == f"{SVG_NS}rect"
+        assert (first.get("x"), first.get("y")) == ("0", "0")
+        assert (first.get("width"), first.get("height")) == ("148", "160")
+        assert first.get("fill") == "#fff"
+
+    def test_serialises_with_default_namespace(self) -> None:
+        out = flatten_svg_vars(PELE_SVG)
+
+        assert out.startswith('<svg xmlns="http://www.w3.org/2000/svg"')
+        assert "ns0:" not in out
+
+    @pytest.mark.parametrize(
+        "svg",
+        [
+            "<svg xmlns='http://www.w3.org/2000/svg'><g></svg>",
+            '<svg xmlns="http://www.w3.org/2000/svg" width="1"/>',
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10"/>',
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" '
+            'fill="var(--_zz)"/>',
+        ],
+        ids=["malformed-xml", "no-viewbox", "short-viewbox", "unknown-alias"],
+    )
+    def test_unflattenable_svg_raises(self, svg: str) -> None:
+        with pytest.raises(MermaidRenderError):
+            flatten_svg_vars(svg)
+
+
+# =============================================================================
 # Integration Tests
 # =============================================================================
 
@@ -383,8 +730,7 @@ class TestLogging:
 class TestIntegration:
     """Integration tests for the full build process."""
 
-    @pytest.mark.asyncio
-    async def test_build_without_mermaid(
+    def test_build_without_mermaid(
         self, tmp_project: Path, logger: logging.Logger
     ) -> None:
         """Test building an EPUB without Mermaid diagrams."""
@@ -399,10 +745,52 @@ class TestIntegration:
         with patch("build_epub.get_chapter_order") as mock_order:
             mock_order.return_value = [("README.md", "Introduction")]
 
-            result = await build_epub_async(config, logger)
+            result = build_epub_async(config, logger)
 
             assert result.exists()
             assert result.suffix == ".epub"
+
+    def test_build_embeds_mermaid_as_svg(
+        self, tmp_project: Path, logger: logging.Logger
+    ) -> None:
+        """Diagrams land in the EPUB as image/svg+xml items, never placeholders."""
+        from build_epub import build_epub_async
+        from check_epub_diagrams import check_epub
+
+        (tmp_project / "README.md").write_text(
+            "# Test Project\n\n```mermaid\ngraph TD\n    A --> B\n```\n\n"
+            "Same diagram again:\n\n```mermaid\ngraph TD\n    A --> B\n```\n",
+            encoding="utf-8",
+        )
+        config = EPUBConfig(root_path=tmp_project, output_path=tmp_project / "t.epub")
+
+        def fake_render(sources: list[str], *_a: Any, **_k: Any) -> list[PeleResult]:
+            return [PeleResult(svg=PELE_SVG, diagram_type="flowchart") for _ in sources]
+
+        with (
+            patch("build_epub.get_chapter_order") as mock_order,
+            patch("build_epub.render_diagrams", side_effect=fake_render),
+        ):
+            mock_order.return_value = [("README.md", "Introduction")]
+            build_epub_async(config, logger)
+
+        with zipfile.ZipFile(config.output_path) as zf:
+            names = zf.namelist()
+            opf_name = next(n for n in names if n.endswith(".opf"))
+            opf = zf.read(opf_name).decode("utf-8")
+            chapter = zf.read("EPUB/chap_01.xhtml").decode("utf-8")
+            svg = zf.read("EPUB/images/mermaid_1.svg").decode("utf-8")
+
+        assert "EPUB/images/mermaid_1.svg" in names
+        assert not any(n.endswith(".png") and "mermaid" in n for n in names)
+        item = next(
+            line for line in opf.split("<item ") if "images/mermaid_1.svg" in line
+        )
+        assert 'media-type="image/svg+xml"' in item
+        assert chapter.count('src="images/mermaid_1.svg"') == 2
+        assert "SVG not found" not in chapter
+        assert "var(" not in svg
+        assert check_epub(config.output_path) == []
 
 
 # =============================================================================

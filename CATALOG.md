@@ -7,7 +7,7 @@
 
 > Quick reference guide to all Claude Code features: commands, agents, skills, plugins, and hooks.
 
-**Navigation**: [Commands](#slash-commands) | [Permission Modes](#permission-modes) | [Subagents](#subagents) | [Skills](#skills) | [Plugins](#plugins) | [MCP Servers](#mcp-servers) | [Hooks](#hooks) | [Memory](#memory-files) | [New Features](#new-features-march-2026)
+**Navigation**: [Commands](#slash-commands) | [Permission Modes](#permission-modes) | [Subagents](#subagents) | [Skills](#skills) | [Plugins](#plugins) | [MCP Servers](#mcp-servers) | [Hooks](#hooks) | [Memory](#memory-files) | [New Features](#new-features)
 
 ---
 
@@ -15,14 +15,14 @@
 
 | Feature | Built-in | Examples | Total | Reference |
 |---------|----------|----------|-------|-----------|
-| **Slash Commands** | 55+ | 8 | 63+ | [01-slash-commands/](01-slash-commands/) |
-| **Subagents** | 6 | 10 | 16 | [04-subagents/](04-subagents/) |
-| **Skills** | 5 bundled | 4 | 9 | [03-skills/](03-skills/) |
+| **Slash Commands** | 60+ | 8 | 68+ | [01-slash-commands/](01-slash-commands/) |
+| **Subagents** | 6 | 9 | 15 | [04-subagents/](04-subagents/) |
+| **Skills** | 20 bundled | 6 | 26 | [03-skills/](03-skills/) |
 | **Plugins** | - | 3 | 3 | [07-plugins/](07-plugins/) |
-| **MCP Servers** | 1 | 8 | 9 | [05-mcp/](05-mcp/) |
-| **Hooks** | 25 events | 7 | 7 | [06-hooks/](06-hooks/) |
-| **Memory** | 7 types | 3 | 3 | [02-memory/](02-memory/) |
-| **Total** | **99** | **43** | **117** | |
+| **MCP Servers** | - | 4 | 4 | [05-mcp/](05-mcp/) |
+| **Hooks** | 33 events | 11 | 44 | [06-hooks/](06-hooks/) |
+| **Memory** | 7 types | 3 | 10 | [02-memory/](02-memory/) |
+| **Total** | **126** | **44** | **170** | |
 
 ---
 
@@ -35,13 +35,13 @@ Commands are user-invoked shortcuts that execute specific actions.
 | Command | Description | When to Use |
 |---------|-------------|-------------|
 | `/help` | Show help information | Get started, learn commands |
-| `/btw` | Side question without adding to context | Quick tangent questions |
+| `/btw` | Ephemeral side question — doesn't pollute main context | Quick tangent questions |
 | `/chrome` | Configure Chrome integration | Browser automation |
 | `/clear` | Clear conversation history | Start fresh, reduce context |
-| `/diff` | Interactive diff viewer | Review changes |
+| `/diff` | Interactive diff viewer. In the fullscreen TUI (v2.1.260+) it opens a diff panel beside the conversation that stays open and refreshes each time Claude edits a file or runs a command; the classic renderer opens the viewer in place of the prompt instead | Review changes |
 | `/config` | View/edit configuration | Customize behavior |
 | `/status` | Show session status | Check current state |
-| `/agents` | List available agents | See delegation options |
+| `/agents` | Removed: the wizard went in v2.1.198 and the command left the `/` menu and `/help` in v2.1.281 — ask Claude to create or manage subagents, or edit `.claude/agents/` | Manage subagents by asking Claude |
 | `/skills` | List available skills | See auto-invoke capabilities |
 | `/hooks` | List configured hooks | Debug automation |
 | `/insights` | Analyze session patterns | Session optimization |
@@ -50,42 +50,53 @@ Commands are user-invoked shortcuts that execute specific actions.
 | `/mcp` | List MCP servers | Check external integrations |
 | `/memory` | View loaded memory files | Debug context loading |
 | `/mobile` | Generate mobile QR code | Mobile access |
-| `/passes` | View usage passes | Subscription info |
+| `/passes` | Share a free week of Claude Code with friends (eligible accounts only) | Referrals |
 | `/plugin` | Manage plugins | Install/remove extensions |
 | `/plan` | Enter planning mode | Complex implementations |
+| `/proactive` | Alias for `/loop` (v2.1.105) | Same as `/loop` |
+| `/recap` | Show session recap when returning to a session | After being away, get context on what was done |
 | `/rewind` | Rewind to checkpoint | Undo changes, explore alternatives |
-| `/checkpoint` | Manage checkpoints | Save/restore states |
-| `/cost` | Show token usage costs | Monitor spending |
+| `/checkpoint` | Alias for `/rewind` | Same as `/rewind` |
+| `/cost` | Shortcut alias that opens the cost tab of `/usage` (v2.1.118+) | Monitor spending |
 | `/context` | Show context window usage | Manage conversation length |
 | `/export` | Export conversation | Save for reference |
-| `/extra-usage` | Configure extra usage limits | Rate limit management |
+| `/usage-credits` | Configure extra usage limits (renamed from `/extra-usage` in v2.1.144; old name still works as alias) | Rate limit management |
 | `/feedback` | Submit feedback or bug report | Report issues |
 | `/login` | Authenticate with Anthropic | Access features |
 | `/logout` | Sign out | Switch accounts |
 | `/sandbox` | Toggle sandbox mode | Safe command execution |
-| `/vim` | Toggle vim mode | Vim-style editing |
 | `/doctor` | Run diagnostics | Troubleshoot issues |
-| `/reload-plugins` | Reload installed plugins | Plugin management |
+| `/reload-plugins` | Reload installed plugins. Since v2.1.221 most installs activate immediately; only needed when the install summary says `Run /reload-plugins to activate.` Available in headless sessions since v2.1.260+, so it appears in the Claude Code Desktop and SDK command lists | Plugin management |
+| `/reload-skills` | Re-scan skill directories without restarting (v2.1.152); since v2.1.304 it sends Claude only new or changed skills, and compaction re-sends the skill list on its own | Skill management |
+| `/workflows` | View running and completed dynamic workflow runs (v2.1.154) | Multi-agent orchestration |
 | `/release-notes` | Show release notes | Check new features |
 | `/remote-control` | Enable remote control | Remote access |
 | `/permissions` | Manage permissions | Control access |
-| `/session` | Manage sessions | Multi-session workflows |
+| `/auto-mode-setup` | Draft `autoMode.environment` entries from your project and recent sessions, review them, and save to your user settings. Pro/Max/Team v2.1.228+ (v2.1.233+ on native Windows); Enterprise or Console API key v2.1.283+; on Bedrock, Vertex, Foundry and telemetry-off sessions v2.1.304+; not in cloud sessions | Teach auto mode about your environment |
 | `/rename` | Rename current session | Organize sessions |
 | `/resume` | Resume previous session | Continue work |
-| `/todo` | View/manage todo list | Track tasks |
+| `/tui [default\|fullscreen]` | Set the terminal UI renderer (`fullscreen` = flicker-free alt-screen); bare `/tui` prints the active one | Flicker-free rendering in fullscreen/tmux |
 | `/tasks` | View background tasks | Monitor async operations |
+| `/schedule [description]` | Create, update, list, or run cloud scheduled tasks (formerly routines) that run on Anthropic's cloud on a schedule, API call, or GitHub event. Alias: `/routines` | Recurring automation that runs without your machine |
 | `/copy` | Copy last response to clipboard | Share output quickly |
-| `/teleport` | Transfer session to another machine | Continue work remotely |
+| `/teleport` (alias `/tp`) | Resume a Claude Code on the web session in this terminal; opens a picker. Requires a claude.ai subscription | Continue work remotely |
 | `/desktop` | Open Claude Desktop app | Switch to desktop interface |
-| `/theme` | Change color theme | Customize appearance |
-| `/usage` | Show API usage statistics | Monitor quota and costs |
-| `/fork` | Fork current conversation | Explore alternatives |
-| `/stats` | Show session statistics | Review session metrics |
+| `/theme` | Change color theme; v2.1.118 added custom named themes via `~/.claude/themes/<name>.json` (plugins can ship a `themes/` dir) | Customize appearance |
+| `/usage` | Canonical command for usage/cost/stats — merged `/cost` and `/stats` into a single tabbed view (v2.1.118); as of v2.1.149 the cost view breaks spending down by category (skills, subagents, plugins, per-MCP-server). In the **VSCode extension** (v2.1.174), the `/usage` (Account & usage) dialog adds an attribution breakdown — cache misses, long-context cost, subagents, and per-skill / per-agent / per-plugin / per-MCP usage over 24h and 7d windows. Since v2.1.305 each `/usage` recommendation is a one-line fix and pressing `f` applies the ones it can (the same fixes appear in `/doctor` and the VS Code dialog) | Monitor quota and costs |
+| `/focus` | Toggle focus view (distraction-free output display) | Reduce visual noise during long tasks |
+| `/fork` | Copy the conversation into a new independent background session (v2.1.212+) | Explore alternatives in parallel |
+| `/subtask` | Spawn a forked subagent that inherits the conversation and reports back (v2.1.212+) | Delegate a side task without losing your place |
+| `/stats` | Shortcut alias that opens the stats tab of `/usage` (v2.1.118+) | Review session metrics |
 | `/statusline` | Configure status line | Customize status display |
-| `/stickers` | View session stickers | Fun rewards |
-| `/fast` | Toggle fast output mode | Speed up responses |
+| `/stickers` | Order Claude Code stickers | Fun rewards |
+| `/fast` | Toggle fast output mode; applies to **Opus 5.5** (the default since v2.1.280), **Opus 5, and Opus 4.8** | Speed up responses |
 | `/terminal-setup` | Configure terminal integration | Setup terminal features |
-| `/upgrade` | Check for updates | Version management |
+| `/undo` | Alias for `/rewind` (v2.1.108) | Same as `/rewind` |
+| `/upgrade` | Open the upgrade page to switch to a higher plan | Plan upgrades |
+| `/team-onboarding` | Generate a teammate ramp-up guide from this project's Claude Code usage | Onboarding new teammates (v2.1.101) |
+| `/code-review ultra` | Run a cloud multi-agent code review over your current changes. `/ultrareview` remains as an alias; `/code-review ultra` is the preferred invocation. Includes 3 free runs on Pro and Max, then requires usage credits | Deep pre-merge review across multiple agents (v2.1.112) |
+| `/fewer-permission-prompts` | Scan transcripts and propose a prioritized allowlist for common read-only tools | Reduce repeat permission prompts in a project (v2.1.112) |
+| `/skill-doctor` | Show which loaded skills go unused and what they cost in context. Opens in the `/plugin` manager's **Stats** tab; prints as text under `-p` | Prune skills you no longer need (v2.1.252+) |
 
 ### Custom Commands (Examples)
 
@@ -117,14 +128,14 @@ Claude Code supports 6 permission modes that control how tool use is authorized.
 
 | Mode | Description | When to Use |
 |------|-------------|-------------|
-| `default` | Prompt for each tool call | Standard interactive use |
+| `manual` | Prompt for each tool call | Reviewing every action yourself (shown as Manual since v2.1.200; config value is still `default`, `manual` is an alias). Since v2.1.283, auto is the built-in starting mode for interactive terminal and VS Code sessions; `claude -p` and Agent SDK runs start in Manual since v2.1.302, so calls needing approval are denied unless something approves them |
 | `acceptEdits` | Auto-accept file edits, prompt for others | Trusted editing workflows |
-| `plan` | Read-only tools only, no writes | Planning and exploration |
-| `auto` | Accept all tools without prompting | Fully autonomous operation (Research Preview) |
+| `plan` | Research and propose a plan; no source edits until you approve it | Planning and exploration |
+| `auto` | All actions, with background safety classifier checks | Long tasks, reducing prompt fatigue |
 | `bypassPermissions` | Skip all permission checks | CI/CD, headless environments |
 | `dontAsk` | Skip tools that would require permission | Non-interactive scripting |
 
-> **Note**: `auto` mode is a Research Preview feature (March 2026). Use `bypassPermissions` only in trusted, sandboxed environments.
+> **Note**: `auto` mode requires an eligible plan, model, and provider — see [09-advanced-features/](09-advanced-features/#auto-mode). Use `bypassPermissions` only in trusted, sandboxed environments.
 
 **Reference**: [Official Docs](https://code.claude.com/docs/en/permissions)
 
@@ -134,16 +145,18 @@ Claude Code supports 6 permission modes that control how tool use is authorized.
 
 Specialized AI assistants with isolated contexts for specific tasks.
 
+> **Nested spawning is on by default, depth 3 (v2.1.219)**: Subagents can spawn their own subagents up to three layers below the main conversation. Set `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to change the limit, or `1` to disable nesting. (History: v2.1.172–v2.1.216 nested by default up to 5 layers with no way to change it; v2.1.217 made nesting opt-in at depth 1; v2.1.219 set the default to 3.) See [04-subagents/README.md](04-subagents/README.md#restrict-spawnable-subagents) for the `Agent(agent_type)` syntax that restricts which subagents a given subagent may spawn.
+
 ### Built-in Subagents
 
 | Agent | Description | Tools | Model | When to Use |
 |-------|-------------|-------|-------|-------------|
 | **general-purpose** | Multi-step tasks, research | All tools | Inherits model | Complex research, multi-file tasks |
 | **Plan** | Implementation planning | Read, Glob, Grep, Bash | Inherits model | Architecture design, planning |
-| **Explore** | Codebase exploration | Read, Glob, Grep | Haiku 4.5 | Quick searches, understanding code |
-| **Bash** | Command execution | Bash | Inherits model | Git operations, terminal tasks |
-| **statusline-setup** | Status line configuration | Bash, Read, Write | Sonnet 4.6 | Configure status line display |
-| **Claude Code Guide** | Help and documentation | Read, Glob, Grep | Haiku 4.5 | Getting help, learning features |
+| **Explore** | Codebase exploration | Read, Glob, Grep | Inherits (capped at Opus) | Quick searches, understanding code |
+| **claude** | Catch-all for tasks that don't fit a more specialized agent | All tools | Inherits model | Tasks with no specialized agent; default agent for a dispatched background session |
+| **statusline-setup** | Status line configuration | Bash, Read, Write | Sonnet | Configure status line display |
+| **claude-code-guide** | Help and documentation | Read, Glob, Grep | Haiku | Getting help, learning features |
 
 ### Subagent Configuration Fields
 
@@ -151,10 +164,10 @@ Specialized AI assistants with isolated contexts for specific tasks.
 |-------|------|-------------|
 | `name` | string | Agent identifier |
 | `description` | string | What the agent does |
-| `model` | string | Model override (e.g., `haiku-4.5`) |
+| `model` | string | Model override (`sonnet`, `opus`, `haiku`, `fable`, a full model ID, or `inherit`) |
 | `tools` | array | Allowed tools list |
-| `effort` | string | Reasoning effort level (`low`, `medium`, `high`) |
-| `initialPrompt` | string | System prompt injected at agent start |
+| `effort` | string | Effort level (`low`, `medium`, `high`, `xhigh`, `max`; depends on model) |
+| `initialPrompt` | string | First user turn auto-submitted when the agent runs as the main session agent (`--agent`) |
 | `disallowedTools` | array | Tools explicitly denied to this agent |
 
 ### Custom Subagents (Examples)
@@ -162,8 +175,6 @@ Specialized AI assistants with isolated contexts for specific tasks.
 | Agent | Description | When to Use | Scope | Installation |
 |-------|-------------|-------------|-------|--------------|
 | `code-reviewer` | Comprehensive code quality | Code review sessions | Project | `cp 04-subagents/code-reviewer.md .claude/agents/` |
-| `code-architect` | Feature architecture design | New feature planning | Project | `cp 04-subagents/code-architect.md .claude/agents/` |
-| `code-explorer` | Deep codebase analysis | Understanding existing features | Project | `cp 04-subagents/code-explorer.md .claude/agents/` |
 | `clean-code-reviewer` | Clean Code principles review | Maintainability review | Project | `cp 04-subagents/clean-code-reviewer.md .claude/agents/` |
 | `test-engineer` | Test strategy & coverage | Test planning | Project | `cp 04-subagents/test-engineer.md .claude/agents/` |
 | `documentation-writer` | Technical documentation | API docs, guides | Project | `cp 04-subagents/documentation-writer.md .claude/agents/` |
@@ -171,6 +182,7 @@ Specialized AI assistants with isolated contexts for specific tasks.
 | `implementation-agent` | Full feature implementation | Feature development | Project | `cp 04-subagents/implementation-agent.md .claude/agents/` |
 | `debugger` | Root cause analysis | Bug investigation | User | `cp 04-subagents/debugger.md .claude/agents/` |
 | `data-scientist` | SQL queries, data analysis | Data tasks | User | `cp 04-subagents/data-scientist.md .claude/agents/` |
+| `performance-optimizer` | Profiling & performance tuning | Bottleneck investigation | Project | `cp 04-subagents/performance-optimizer.md .claude/agents/` |
 
 > **Scope**: `User` = personal (`~/.claude/agents/`), `Project` = team-shared (`.claude/agents/`)
 
@@ -191,10 +203,12 @@ Auto-invoked capabilities with instructions, scripts, and templates.
 
 | Skill | Description | When Auto-Invoked | Scope | Installation |
 |-------|-------------|-------------------|-------|--------------|
-| `code-review` | Comprehensive code review | "Review this code", "Check quality" | Project | `cp -r 03-skills/code-review .claude/skills/` |
+| `code-review-specialist` | Comprehensive code review | "Review this code", "Check quality" | Project | `cp -r 03-skills/code-review-specialist .claude/skills/` |
 | `brand-voice` | Brand consistency checker | Writing marketing copy | Project | `cp -r 03-skills/brand-voice .claude/skills/` |
 | `doc-generator` | API documentation generator | "Generate docs", "Document API" | Project | `cp -r 03-skills/doc-generator .claude/skills/` |
 | `refactor` | Systematic code refactoring (Martin Fowler) | "Refactor this", "Clean up code" | User | `cp -r 03-skills/refactor ~/.claude/skills/` |
+| `claude-md` | Create or update CLAUDE.md files | "Create CLAUDE.md", "Audit CLAUDE.md" | Project | `cp -r 03-skills/claude-md .claude/skills/` |
+| `blog-draft` | Draft a blog post from ideas and resources | "Write a blog post", "Draft an article" | User | `cp -r 03-skills/blog-draft ~/.claude/skills/` |
 
 > **Scope**: `User` = personal (`~/.claude/skills/`), `Project` = team-shared (`.claude/skills/`)
 
@@ -215,9 +229,9 @@ Skills support YAML frontmatter in `SKILL.md` for configuration:
 |-------|------|-------------|
 | `name` | string | Skill display name |
 | `description` | string | What the skill does |
-| `autoInvoke` | array | Trigger phrases for auto-invocation |
-| `effort` | string | Reasoning effort level (`low`, `medium`, `high`) |
-| `shell` | string | Shell to use for scripts (`bash`, `zsh`, `sh`) |
+| `when_to_use` | string | Trigger phrases or example requests appended to `description` |
+| `effort` | string | Effort level (`low`, `medium`, `high`, `xhigh`, `max`; depends on model) |
+| `shell` | string | Shell for inline `` !`command` `` blocks (`bash` default, or `powershell`) |
 
 **Reference**: [03-skills/](03-skills/) | [Official Docs](https://code.claude.com/docs/en/skills)
 
@@ -230,11 +244,28 @@ cp -r 03-skills/* ~/.claude/skills/
 
 | Skill | Description | When Auto-Invoked |
 |-------|-------------|-------------------|
-| `/simplify` | Review code for quality | After writing code |
-| `/batch` | Run prompts on multiple files | Batch operations |
-| `/debug` | Debug failing tests/errors | Debugging sessions |
+| `/artifact-capabilities` | Load the reference for the runtime capabilities a published artifact can use (connectors, file downloads) | Before building an artifact page that uses one |
+| `/artifact-diagramming` *(v2.1.221+)* | Load diagramming guidance for artifacts: when a diagram helps, what to draw, inline SVG legible in light and dark themes | Drawing a diagram in an artifact |
+| `/batch` | Split a large change into 5–30 independent units, each run by a background subagent in its own worktree | Large parallel refactors |
+| `/claude-api [subcommand]` | Build apps with Claude API. Subcommands include `migrate`, `api-version` (update code to a newer API version such as `2026-10-21`, v2.1.307+) and `managed-agents-secure` (compare a Managed Agents agent's settings with Anthropic's security guide; needs the `ant` CLI, v2.1.304+) | API development |
+| `/claude-in-chrome [task]` | Carry out a task in your browser (test a page, fill a form, read console logs) via Claude in Chrome. Available when Chrome integration is enabled | Browser tasks |
+| `/dataviz [request]` | Design guidance for charts, graphs, and dashboards: chart form, color by role, palette validation for colorblind safety and contrast | Building a chart or dashboard |
+| `/debug [description]` | Turn on debug logging for the session and troubleshoot from the session debug log | Debugging Claude Code itself |
+| `/design` *(v2.1.265+)* | Create a multi-artboard design canvas — UI mockups, screen flows, landing pages, posters — refined visually instead of in code. Pro/Max/Team/Enterprise | Designing a screen or page you would rather tweak by hand than in HTML |
+| `/design-sync [hint]` | Convert your repo's React design system and upload it to Claude Design so its designs use your real components. Anthropic API only. Standalone Claude Design (claude.ai/design) closes December 14, 2026. | Syncing a design system to Claude Design |
+| `/design-login` | Authorize design-system access for `/design-sync` (signs in to the standalone claude.ai/design site, which closes by December 14, 2026) | Before running `/design-sync` |
+| `/design consent`, `/design revoke` | Grant Claude access to Claude Design, or withdraw it. When Claude asks you to run `/design consent`, type it at the prompt yourself | Giving or removing Claude Design access |
+| `/doctor [prompt-audit [path]]` | Setup checkup that diagnoses installation, settings, extension, and `CLAUDE.md` problems and proposes fixes. Alias: `/checkup` | Troubleshooting your setup |
+| `/fewer-permission-prompts` | Scan transcripts and propose a prioritized allowlist | Reduce repeat permission prompts |
 | `/loop` | Run prompts on interval | Recurring tasks |
-| `/claude-api` | Build apps with Claude API | API development |
+| `/run` *(v2.1.145+)* | Launch this project's app to see a change running | Verifying a change in the real app |
+| `/run-skill-generator` *(v2.1.145+)* | Teach `/run`/`/verify` how to handle a specific project | First-time project setup for `/run` |
+| `/code-review [low\|medium\|high\|xhigh\|max\|ultra] [--fix] [--comment] [pr#\|branch\|path]` | Review the current diff — or a PR, branch, or path — for correctness bugs. `--fix` applies findings, `--comment` posts them as inline PR comments. With no level given it reuses the last one you typed (v2.1.223). Lower effort levels moved to a **background subagent** in v2.1.218; `high`, `xhigh`, and `max` followed in v2.1.232, so review output no longer fills the conversation | After writing code, before landing a PR |
+| `/slides [brief]` *(v2.1.265+)* | Make a new presentation as a Claude Slides artifact from your brief. Needs artifacts and the Slides template | Creating a slide deck |
+| `/simplify` *(distinct again since v2.1.154)* | Cleanup-only review (reuse / simplification / efficiency / altitude) that applies the fixes; does not hunt bugs | Tidying code without a bug hunt |
+| `/update-config [request]` | Describe a settings change (allow a command, set an env var, add a hook) and Claude edits the matching `settings.json` | Changing settings without hand-editing JSON |
+| `/verify` *(v2.1.145+)* | Build, run, and observe the app to confirm a fix works | Validating a fix end-to-end |
+| `/workflow-authoring` *(v2.1.248+)* | Load the reference for writing dynamic workflow scripts (script API, resume, quality patterns). Available when dynamic workflows are enabled | Writing or editing a workflow script |
 
 ---
 
@@ -246,7 +277,7 @@ Bundled collections of commands, agents, MCP servers, and hooks.
 
 | Plugin | Description | Components | When to Use | Scope | Installation |
 |--------|-------------|------------|-------------|-------|--------------|
-| `pr-review` | PR review workflow | 3 commands, 3 agents, GitHub MCP | Code reviews | Project | `/plugin install pr-review` |
+| `pr-review` | PR review workflow | 3 commands, 3 agents, GitHub MCP | Code reviews | Project | `claude --plugin-dir ./07-plugins/pr-review` |
 | `devops-automation` | Deployment & monitoring | 4 commands, 3 agents, K8s MCP | DevOps tasks | Project | `/plugin install devops-automation` |
 | `documentation` | Doc generation suite | 4 commands, 3 agents, templates | Documentation | Project | `/plugin install documentation` |
 
@@ -254,14 +285,17 @@ Bundled collections of commands, agents, MCP servers, and hooks.
 
 ### Plugin Structure
 
-```
-.claude-plugin/
-├── plugin.json       # Manifest file
+```text
+my-plugin/
+├── .claude-plugin/
+│   └── plugin.json   # Manifest file (the only file in .claude-plugin/)
 ├── commands/         # Slash commands
 ├── agents/           # Subagents
-├── skills/           # Skills
-├── mcp/              # MCP configurations
-├── hooks/            # Hook scripts
+├── skills/           # Skills (<name>/SKILL.md)
+├── hooks/
+│   └── hooks.json    # Hook configuration
+├── .mcp.json         # MCP configurations
+├── bin/              # Executables
 └── scripts/          # Utility scripts
 ```
 
@@ -271,8 +305,8 @@ Bundled collections of commands, agents, MCP servers, and hooks.
 ```bash
 /plugin list              # List installed plugins
 /plugin install <name>    # Install plugin
-/plugin remove <name>     # Remove plugin
-/plugin update <name>     # Update plugin
+/plugin uninstall <name>  # Uninstall plugin
+claude plugin update <name>   # Update a plugin (CLI; the /plugin update slash form is referenced in prose but not in the command reference)
 ```
 
 ---
@@ -285,17 +319,17 @@ Model Context Protocol servers for external tool and API access.
 
 | Server | Description | When to Use | Scope | Installation |
 |--------|-------------|-------------|-------|--------------|
-| **GitHub** | PR management, issues, code | GitHub workflows | Project | `claude mcp add github -- npx -y @modelcontextprotocol/server-github` |
-| **Database** | SQL queries, data access | Database operations | Project | `claude mcp add db -- npx -y @modelcontextprotocol/server-postgres` |
-| **Filesystem** | Advanced file operations | Complex file tasks | User | `claude mcp add fs -- npx -y @modelcontextprotocol/server-filesystem` |
+| **GitHub** | PR management, issues, code | GitHub workflows | Local | `claude mcp add github -- npx -y @modelcontextprotocol/server-github` |
+| **Database** | SQL queries, data access | Database operations | Local | `claude mcp add db -- npx -y @modelcontextprotocol/server-postgres` |
+| **Filesystem** | Advanced file operations | Complex file tasks | Local | `claude mcp add fs -- npx -y @modelcontextprotocol/server-filesystem` |
 | **Slack** | Team communication | Notifications, updates | Project | Configure in settings |
 | **Google Docs** | Document access | Doc editing, review | Project | Configure in settings |
 | **Asana** | Project management | Task tracking | Project | Configure in settings |
 | **Stripe** | Payment data | Financial analysis | Project | Configure in settings |
 | **Memory** | Persistent memory | Cross-session recall | User | Configure in settings |
-| **Context7** | Library documentation | Up-to-date docs lookup | Built-in | Built-in |
+| **Context7** | Library documentation | Up-to-date docs lookup | User | Configure in settings (third-party server) |
 
-> **Scope**: `Project` = team (`.mcp.json`), `User` = personal (`~/.claude.json`), `Built-in` = pre-installed
+> **Scope**: `Local` = default for `claude mcp add` with no `--scope` (only you, this project; `~/.claude.json`), `Project` = team (`.mcp.json`, `--scope project`), `User` = personal (`~/.claude.json`, `--scope user`), `Built-in` = pre-installed
 
 ### MCP Configuration Example
 
@@ -331,25 +365,33 @@ Event-driven automation that executes shell commands on Claude Code events.
 | Event | Description | When Triggered | Use Cases |
 |-------|-------------|----------------|-----------|
 | `SessionStart` | Session begins/resumes | Session initialization | Setup tasks |
+| `Setup` | Repository setup or maintenance run | Only with `--init-only`, or `--init`/`--maintenance` with `-p` | Provision tooling, install deps |
 | `InstructionsLoaded` | Instructions loaded | CLAUDE.md or rules file loaded | Custom instruction handling |
-| `UserPromptSubmit` | Before prompt processing | User sends message | Input validation |
+| `UserPromptSubmit` | Before prompt processing (and, since v2.1.299, before a skill or custom command expands) | User sends message | Input validation |
+| `UserPromptExpansion` | A typed slash command (skill, custom command, or MCP prompt) expands into a prompt | After `UserPromptSubmit`, before the expanded prompt reaches Claude | Block direct `/command` use, add per-skill context, log commands |
 | `PreToolUse` | Before tool execution | Before any tool runs | Validation, logging |
 | `PermissionRequest` | Permission dialog shown | Before sensitive actions | Custom approval flows |
+| `PermissionDenied` | User denies a permission prompt | After permission decline | Logging, analytics, policy enforcement |
 | `PostToolUse` | After tool succeeds | After any tool completes | Formatting, notifications |
 | `PostToolUseFailure` | Tool execution fails | After tool error | Error handling, logging |
+| `PostToolBatch` | After a batch of tool uses completes | End of a tool batch | Aggregate reporting, batched validation |
 | `Notification` | Notification sent | Claude sends notification | External alerts |
+| `MessageDisplay` | Assistant message text is displayed | While the message renders | Transform or hide displayed text |
 | `SubagentStart` | Subagent spawned | Subagent task starts | Initialize subagent context |
 | `SubagentStop` | Subagent finishes | Subagent task complete | Chain actions |
 | `Stop` | Claude finishes responding | Response complete | Cleanup, reporting |
 | `StopFailure` | API error ends turn | API error occurs | Error recovery, logging |
 | `TeammateIdle` | Teammate agent idle | Agent team coordination | Distribute work |
-| `TaskCompleted` | Task marked complete | Task done | Post-task processing |
-| `TaskCreated` | Task created via TaskCreate | New task created | Task tracking, logging |
+| `TaskCompleted` | Task marked complete (only fires when the todo tools are enabled — see [Hooks](06-hooks/README.md#hook-events)) | Task done | Post-task processing |
+| `TaskCreated` | Task created via TaskCreate (only fires when the todo tools are enabled — see [Hooks](06-hooks/README.md#hook-events)) | New task created | Task tracking, logging |
 | `ConfigChange` | Configuration updated | Settings modified | React to config changes |
 | `CwdChanged` | Working directory changes | Directory changed | Directory-specific setup |
+| `DirectoryAdded` | New working directory registered mid-session | `/add-dir` or SDK `register_repo_root` | Set up tooling for the new directory |
 | `FileChanged` | Watched file changes | File modified | File monitoring, rebuild |
 | `PreCompact` | Before compact operation | Context compression | State preservation |
 | `PostCompact` | After compaction completes | Compaction done | Post-compact actions |
+| `PreModelSwitch` | Before a requested model switch is applied | Model switch requested | Gate or veto model changes |
+| `PostModelSwitch` | After the session's model changes | Model switch completed | Log or react to model changes |
 | `WorktreeCreate` | Worktree being created | Git worktree created | Setup worktree environment |
 | `WorktreeRemove` | Worktree being removed | Git worktree removed | Cleanup worktree resources |
 | `Elicitation` | MCP server requests input | MCP elicitation | Input validation |
@@ -360,13 +402,17 @@ Event-driven automation that executes shell commands on Claude Code events.
 
 | Hook | Description | Event | Scope | Installation |
 |------|-------------|-------|-------|--------------|
-| `validate-bash.py` | Command validation | PreToolUse:Bash | Project | `cp 06-hooks/validate-bash.py .claude/hooks/` |
-| `security-scan.py` | Security scanning | PostToolUse:Write | Project | `cp 06-hooks/security-scan.py .claude/hooks/` |
+| `pre-tool-check.sh` | Blocks/warns on risky Bash commands | PreToolUse:Bash | User | `cp 06-hooks/pre-tool-check.sh ~/.claude/hooks/` |
+| `security-scan.sh` | Security scanning | PostToolUse:Write | Project | `cp 06-hooks/security-scan.sh .claude/hooks/` |
 | `format-code.sh` | Auto-formatting | PostToolUse:Write | User | `cp 06-hooks/format-code.sh ~/.claude/hooks/` |
-| `validate-prompt.py` | Prompt validation | UserPromptSubmit | Project | `cp 06-hooks/validate-prompt.py .claude/hooks/` |
-| `context-tracker.py` | Token usage tracking | Stop | User | `cp 06-hooks/context-tracker.py ~/.claude/hooks/` |
+| `validate-prompt.sh` | Prompt validation | UserPromptSubmit | Project | `cp 06-hooks/validate-prompt.sh .claude/hooks/` |
+| `context-tracker.py` | Token usage tracking | UserPromptSubmit, Stop | User | `cp 06-hooks/context-tracker.py ~/.claude/hooks/` |
+| `context-tracker-tiktoken.py` | Token usage tracking (tiktoken, ~90-95% accuracy) | UserPromptSubmit, Stop | User | `cp 06-hooks/context-tracker-tiktoken.py ~/.claude/hooks/` |
 | `pre-commit.sh` | Pre-commit validation | PreToolUse:Bash | Project | `cp 06-hooks/pre-commit.sh .claude/hooks/` |
 | `log-bash.sh` | Command logging | PostToolUse:Bash | User | `cp 06-hooks/log-bash.sh ~/.claude/hooks/` |
+| `dependency-check.sh` | Vulnerability scan on manifest changes | PostToolUse:Write | Project | `cp 06-hooks/dependency-check.sh .claude/hooks/` |
+| `notify-team.sh` | Team notifications on git push | PostToolUse:Bash | Project | `cp 06-hooks/notify-team.sh .claude/hooks/` |
+| `session-end.sh` | Captures progress when a session ends | SessionEnd | User | `cp 06-hooks/session-end.sh ~/.claude/hooks/` |
 
 > **Scope**: `Project` = team (`.claude/settings.json`), `User` = personal (`~/.claude/settings.json`)
 
@@ -378,13 +424,17 @@ Event-driven automation that executes shell commands on Claude Code events.
     "PreToolUse": [
       {
         "matcher": "Bash",
-        "command": "~/.claude/hooks/validate-bash.py"
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/pre-tool-check.sh" }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "Write",
-        "command": "~/.claude/hooks/format-code.sh"
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/format-code.sh" }
+        ]
       }
     ]
   }
@@ -413,7 +463,7 @@ Persistent context loaded automatically across sessions.
 | **Project Rules** | `.claude/rules/` | Project (team) | Modular project rules |
 | **User** | `~/.claude/CLAUDE.md` | User (personal) | Personal preferences |
 | **User Rules** | `~/.claude/rules/` | User (personal) | Modular personal rules |
-| **Local** | `./CLAUDE.local.md` | Local (git-ignored) | Machine-specific overrides (not in official docs as of March 2026; may be legacy) |
+| **Local** | `./CLAUDE.local.md` | Local (git-ignored) | Machine-specific local overrides (gitignored). Documented at https://code.claude.com/docs/en/memory as a supported per-developer override file. |
 | **Auto Memory** | Automatic | Session | Auto-captured insights and corrections |
 
 > **Scope**: `Organization` = managed by admins, `Project` = shared with team via git, `User` = personal preferences, `Local` = not committed, `Session` = auto-managed
@@ -428,13 +478,29 @@ cp 02-memory/personal-CLAUDE.md ~/.claude/CLAUDE.md
 
 ---
 
-## New Features (March 2026)
+## New Features
 
 | Feature | Description | How to Use |
 |---------|-------------|------------|
-| **Remote Control** | Control Claude Code sessions remotely via API | Use the remote control API to send prompts and receive responses programmatically |
-| **Web Sessions** | Run Claude Code in a browser-based environment | Access via `claude web` or through the Anthropic Console |
+| **/focus** | Toggle focus view for distraction-free output display (v2.1.110) | Run `/focus` to reduce visual noise during long tasks |
+| **/proactive** | Alias for `/loop` — same recurring-task behavior (v2.1.105) | Use `/proactive` interchangeably with `/loop` |
+| **/recap** | Show a session recap when returning to an existing session (v2.1.108) | Run `/recap` after being away to get context on what was done |
+| **/tui** | Set the terminal UI renderer: `/tui fullscreen` for flicker-free rendering, `/tui default` to switch back; bare `/tui` prints the active renderer (v2.1.110) | Use `/tui fullscreen` in fullscreen terminals or tmux |
+| **/undo** | Alias for `/rewind` (v2.1.108) | Use `/undo`, `/checkpoint`, or `/rewind` interchangeably |
+| **Monitor Tool** | Watch a background command's stdout stream and react to events instead of polling (v2.1.98+) | Use the Monitor tool via [Advanced Features](09-advanced-features/) |
+| **Output Styles** | Change Claude's role, tone, and default response format via the system prompt. Built-ins: Default, Proactive, Explanatory, Learning, Concise | `/config` → Output style, set `outputStyle`, or run `/output-style` (re-added in v2.1.269 after removal in v2.1.91). See [Advanced Features](09-advanced-features/#output-styles) |
+| **Status Line** | Render a custom status line from a command that receives session, model, cost, and context JSON on stdin | `/statusline` or the `statusLine` setting. See [Advanced Features](09-advanced-features/#status-line) |
+| **Community Marketplace** | Third-party plugins that passed Anthropic's automated validation, each pinned to a commit SHA | `/plugin marketplace add anthropics/claude-plugins-community`, then `/plugin install <name>@claude-community` |
+| **/team-onboarding** | Auto-generate a teammate ramp-up guide from the project's Claude Code setup (v2.1.101) | Run `/team-onboarding` in your project |
+| **Remote Control** | Control Claude Code sessions remotely via API. **No longer a research preview** — any machine running `claude remote-control` shows up as a device card in the Claude app's Code tab, so a session can be started on it from a phone | Run `claude remote-control` on the machine, then pick its device card in the Claude app. See [Advanced Features](09-advanced-features/README.md) |
+| **Web Sessions** | Run Claude Code in a cloud session | Start one with `claude --cloud "task"` or at claude.ai/code |
 | **Desktop App** | Native desktop application for Claude Code | Use `/desktop` or download from Anthropic website |
+| **Cross-Session Messaging** | Sessions can message each other — including your other machines and cloud sessions — discovered via `ListAgents` (v2.1.224+ on macOS/Linux; native Windows v2.1.234+) | See [Advanced Features](09-advanced-features/README.md#cross-session-messaging); control inbound with `crossSessionInbound` |
+| **Self-Hosted Runner** | Run Claude Code web, mobile, and desktop sessions on your own machines or containers (v2.1.224+, Team/Enterprise) | `claude self-hosted-runner setup`; see [CLI](10-cli/README.md) |
+| **`archive` plugin source** | Install a plugin from an HTTPS zip, optionally pinned by `sha256` (v2.1.224+) | See [Plugins](07-plugins/README.md#archive-source-v21224) |
+| **`command` plugin source** | A locally installed tool prints the plugin directory path (v2.1.229+) | See [Plugins](07-plugins/README.md#command-source-v21229) |
+| **Marketplace owner wildcards** | `"owner/*"` allows or blocks every marketplace repo under a GitHub owner — `strictKnownMarketplaces` and `blockedMarketplaces` only (v2.1.223+) | See [Plugins](07-plugins/README.md#marketplace-configuration) |
+| **Sandbox credential masking** | Sandboxed commands read a sentinel while the proxy substitutes the real secret on egress (v2.1.221+, Linux/WSL) | See [Advanced Features](09-advanced-features/README.md#credential-masking-v21221-v21224) |
 | **Agent Teams** | Coordinate multiple agents working on related tasks | Configure teammate agents that collaborate and share context |
 | **Task List** | Background task management and monitoring | Use `/tasks` to view and manage background operations |
 | **Prompt Suggestions** | Context-aware command suggestions | Suggestions appear automatically based on current context |
@@ -442,18 +508,30 @@ cp 02-memory/personal-CLAUDE.md ~/.claude/CLAUDE.md
 | **Sandboxing** | Isolated execution environments for safety | Use `/sandbox` to toggle; runs commands in restricted environments |
 | **MCP OAuth** | OAuth authentication for MCP servers | Configure OAuth credentials in MCP server settings for secure access |
 | **MCP Tool Search** | Search and discover MCP tools dynamically | Use tool search to find available MCP tools across connected servers |
-| **Scheduled Tasks** | Set up recurring tasks with `/loop` and cron tools | Use `/loop 5m /command` or CronCreate tool |
-| **Chrome Integration** | Browser automation with headless Chromium | Use `--chrome` flag or `/chrome` command |
+| **Scheduled Tasks (session-scoped)** | Set up recurring tasks inside a session with `/loop` and cron tools; for cloud scheduled tasks (formerly routines) use `/schedule` | Use `/loop 5m /command` or CronCreate tool |
+| **Chrome Integration** | Drive your own Chrome/Edge (visible window, your logins) via the Claude in Chrome extension | Use `--chrome` flag or `/chrome` command |
 | **Keyboard Customization** | Customize keybindings including chord support | Use `/keybindings` or edit `~/.claude/keybindings.json` |
-| **Auto Mode** | Fully autonomous operation without permission prompts (Research Preview) | Use `--mode auto` or `/permissions auto`; March 2026 |
+| **Auto Mode** | Fully autonomous operation with background safety classifier checks | `Shift+Tab` to cycle to it, or `--permission-mode auto` |
 | **Channels** | Multi-channel communication (Telegram, Slack, etc.) (Research Preview) | Configure channel plugins; March 2026 |
 | **Voice Dictation** | Voice input for prompts | Use microphone icon or voice keybinding |
 | **Agent Hook Type** | Hooks that spawn a subagent instead of running a shell command | Set `"type": "agent"` in hook configuration |
-| **Prompt Hook Type** | Hooks that inject prompt text into the conversation | Set `"type": "prompt"` in hook configuration |
+| **Prompt Hook Type** | Hooks that send a prompt to a Claude model for single-turn evaluation; the model returns its decision as JSON | Set `"type": "prompt"` in hook configuration |
 | **MCP Elicitation** | MCP servers can request user input during tool execution | Handle via `Elicitation` and `ElicitationResult` hook events |
-| **WebSocket MCP Transport** | WebSocket-based transport for MCP server connections | Use `"transport": "websocket"` in MCP server config |
 | **Plugin LSP Support** | Language Server Protocol integration via plugins | Configure LSP servers in `plugin.json` for editor features |
 | **Managed Drop-ins** | Organization-managed drop-in configurations (v2.1.83) | Admin-configured via managed policies; auto-applied to all users |
+| **`claude plugin init`** | Scaffold a new plugin in `.claude/skills`; such plugins auto-load with no marketplace (v2.1.157) | Run `claude plugin init <name>` |
+| **Auto Mode on third-party providers** | Available by default on Amazon Bedrock, Google Cloud's Agent Platform, Microsoft Foundry, and signed-in Claude apps gateway sessions, where the supported models are Claude Sonnet 5 or later, Opus 4.7 or later, Haiku 5.5 (v2.1.293+), and the Fable models (opt-in required v2.1.158–v2.1.206; removed in v2.1.207 — `CLAUDE_CODE_ENABLE_AUTO_MODE` is still accepted but has no effect) | `Shift+Tab` to cycle to it, or `--permission-mode auto` |
+| **Immediate Dialog Commands** | `/permissions` can be opened while Claude is working (rule changes apply to the rest of the turn), and the `/add-dir`, `/autocompact`, `/theme`, `/help`, `/config`, and `/advisor` dialogs open mid-turn **in the fullscreen TUI** instead of queuing until Claude finishes responding (`/bug` already did this since v2.1.232) (v2.1.234) | Run one of these commands while Claude is working. See [Slash Commands](01-slash-commands/README.md) |
+| **`CLAUDE_CODE_PROJECT_DIR_NAME`** | Env var controlling per-project transcript directory naming (v2.1.234) | Set in your shell/env before launching Claude Code; ignored unless `CLAUDE_CONFIG_DIR` is also set. See [CLI](10-cli/README.md) |
+| **Goal Check-In Threshold** | While a `/goal` is active, Claude checks in with a status update if a background task makes no progress for 30+ minutes, instead of continuing silently; tune with `CLAUDE_CODE_GOAL_CHECKIN_MINUTES`, or set to `0` to disable (v2.1.234) | Set `CLAUDE_CODE_GOAL_CHECKIN_MINUTES=<n>` alongside an active `/goal`. See [Slash Commands](01-slash-commands/README.md) |
+| **Usage-Limit Auto-Continue** | Claude Code auto-continues a session when a claude.ai usage limit resets, if it was blocked on that limit (v2.1.234) | On by default; turn it off in `/config` → "Continue automatically at usage limit". See [Advanced Features](09-advanced-features/) |
+| **`spellcheck` setting** | Underlines misspelled words in the prompt input using whichever of aspell, hunspell, or ispell is on your `PATH`; off by default (v2.1.235) | Install a checker, then set `"spellcheck": { "enabled": true }` in `~/.claude/settings.json`. User, `--settings`, and managed settings only — ignored in project settings. See [Advanced Features](09-advanced-features/) |
+| **Agent Teams Default Model** | The "Default teammate model" `/config` setting was removed; teammates now inherit the team lead's model by default unless the spawn call specifies one explicitly (v2.1.234) | See [Subagents — Agent Teams](04-subagents/README.md#agent-teams-experimental) |
+| **`/design`** | Design canvas — a multi-artboard visual design (UI mockups, screen flows, landing pages, posters) built on artifacts and refined visually rather than in code. Requires v2.1.265+; Pro/Max/Team/Enterprise | Run `/design` in the CLI or the Desktop app. See [Slash Commands](01-slash-commands/README.md) |
+| **`notify_when_idle`** | Cross-session `SendMessage` input that asks another session on the same machine to send one notice when it next goes idle — opt-in, one-shot, no polling (v2.1.236). Related: `ListAgents` reports the session's own name and lists live teammates, and Windows gained cross-session messaging (v2.1.239) | Pass `notify_when_idle` to `SendMessage`. See [Advanced Features](09-advanced-features/README.md#cross-session-messaging) |
+| **Plugin manifest fields** | `plugin.json` accepts `workflows`, `channels`, `dependencies` (semver), `outputStyles`, `keywords`, `metadata`, `lspServers`, and `experimental.themes` / `experimental.monitors`. CLI gained `claude plugin new`, `remove`/`rm`, `prune`/`autoremove`, and the flags `--with`, `-f`/`--force`, `--available`, `--push`, `--dry-run` | See [Plugins](07-plugins/README.md) |
+| **Restricted Mode** | Removes the built-in tools that run commands or code (such as Bash and PowerShell) and WebFetch unless `--tools` names them individually (not via the `default` preset); ignores user, project, and local settings (managed settings and `--settings` still apply); confines file tools to the working directories; refuses `bypassPermissions`; and refuses to create cloud sessions (v2.1.248+) | `claude --restricted`, or `CLAUDE_CODE_RESTRICTED=1`. See [CLI](10-cli/README.md) |
+| **`/advisor` text form** | `/advisor`, `/advisor <model>`, and `/advisor off` work as text commands in the desktop app, Remote Control, and other headless (`-p` / Agent SDK) sessions, not just as a dialog (v2.1.260+) | Type `/advisor off` in a headless session. See [Slash Commands](01-slash-commands/README.md) |
 
 ---
 
@@ -481,7 +559,7 @@ cp 02-memory/personal-CLAUDE.md ~/.claude/CLAUDE.md
 | 4. Automation | Hooks | `cp 06-hooks/*.sh ~/.claude/hooks/ && chmod +x ~/.claude/hooks/*.sh` |
 | 5. External | MCP | `claude mcp add github -- npx -y @modelcontextprotocol/server-github` |
 | 6. Advanced | Skills | `cp -r 03-skills/* ~/.claude/skills/` |
-| 7. Complete | Plugins | `/plugin install pr-review` |
+| 7. Complete | Plugins | `claude --plugin-dir ./07-plugins/pr-review` |
 
 ---
 
@@ -513,4 +591,47 @@ chmod +x ~/.claude/hooks/*.sh
 
 ---
 
-**Last Updated**: March 2026
+**Last Updated**: October 26, 2026
+**Claude Code Version**: 2.1.310
+**Sources**:
+- https://code.claude.com/docs/en/sub-agents
+- https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md
+- https://code.claude.com/docs/en/overview
+- https://code.claude.com/docs/en/commands
+- https://code.claude.com/docs/en/hooks
+- https://code.claude.com/docs/en/permission-modes
+- https://code.claude.com/docs/en/changelog#2-1-172
+- https://code.claude.com/docs/en/changelog#2-1-174
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.145
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.154
+- https://code.claude.com/docs/en/plugins
+- https://code.claude.com/docs/en/cli-reference
+- https://code.claude.com/docs/en/model-config
+- https://code.claude.com/docs/en/skills
+- https://code.claude.com/docs/en/plugin-marketplaces
+- https://code.claude.com/docs/en/discover-plugins
+- https://code.claude.com/docs/en/settings
+- https://code.claude.com/docs/en/plugins-reference
+- https://code.claude.com/docs/en/slash-commands
+- https://code.claude.com/docs/en/fast-mode
+- https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode
+- https://code.claude.com/docs/en/mcp
+- https://code.claude.com/docs/en/chrome
+- https://code.claude.com/docs/en/skills#bundled-skills
+- https://code.claude.com/docs/en/plugins/manifest-reference
+- https://code.claude.com/docs/en/plugins/cli-reference
+- https://code.claude.com/docs/en/env-vars
+- https://code.claude.com/docs/en/cross-session-messaging
+- https://support.claude.com/en/articles/17440474-migrate-from-standalone-claude-design-to-claude
+- https://code.claude.com/docs/en/permission-modes#which-mode-a-session-starts-in
+- https://code.claude.com/docs/en/changelog#2-1-305
+- https://code.claude.com/docs/en/costs#apply-recommendations-with-the-fix-shortcut
+- https://code.claude.com/docs/en/changelog#2-1-304
+- https://code.claude.com/docs/en/commands#all-commands
+- https://code.claude.com/docs/en/context-window#what-survives-compaction
+- https://code.claude.com/docs/en/changelog#2-1-307
+- https://code.claude.com/docs/en/skills#work-on-claude-api-projects
+- https://code.claude.com/docs/en/routines
+- https://code.claude.com/docs/en/auto-mode-config#generate-environment-entries-with-auto-mode-setup
+- https://code.claude.com/docs/en/scheduled-tasks
+**Compatible Models**: Claude Fable 5.1, Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5

@@ -97,14 +97,14 @@ graph TD
 
 | Step | Feature | Complexity | Time | Level | Dependencies | Why Learn This | Key Benefits |
 |------|---------|-----------|------|-------|--------------|----------------|--------------|
-| **1** | [Slash Commands](01-slash-commands/) | ⭐ Beginner | 30 min | Level 1 | None | Quick productivity wins (55+ built-in + 5 bundled skills) | Instant automation, team standards |
+| **1** | [Slash Commands](01-slash-commands/) | ⭐ Beginner | 30 min | Level 1 | None | Quick productivity wins (60+ built-in commands + bundled skills) | Instant automation, team standards |
 | **2** | [Memory](02-memory/) | ⭐⭐ Beginner+ | 45 min | Level 1 | None | Essential for all features | Persistent context, preferences |
 | **3** | [Checkpoints](08-checkpoints/) | ⭐⭐ Intermediate | 45 min | Level 1 | Session management | Safe exploration | Experimentation, recovery |
 | **4** | [CLI Basics](10-cli/) | ⭐⭐ Beginner+ | 30 min | Level 1 | None | Core CLI usage | Interactive & print mode |
 | **5** | [Skills](03-skills/) | ⭐⭐ Intermediate | 1 hour | Level 2 | Slash Commands | Automatic expertise | Reusable capabilities, consistency |
-| **6** | [Hooks](06-hooks/) | ⭐⭐ Intermediate | 1 hour | Level 2 | Tools, Commands | Workflow automation (25 events, 4 types) | Validation, quality gates |
+| **6** | [Hooks](06-hooks/) | ⭐⭐ Intermediate | 1 hour | Level 2 | Tools, Commands | Workflow automation (33 events, 5 types) | Validation, quality gates |
 | **7** | [MCP](05-mcp/) | ⭐⭐⭐ Intermediate+ | 1 hour | Level 2 | Configuration | Live data access | Real-time integration, APIs |
-| **8** | [Subagents](04-subagents/) | ⭐⭐⭐ Intermediate+ | 1.5 hours | Level 2 | Memory, Commands | Complex task handling (6 built-in including Bash) | Delegation, specialized expertise |
+| **8** | [Subagents](04-subagents/) | ⭐⭐⭐ Intermediate+ | 1.5 hours | Level 2 | Memory, Commands | Complex task handling (6 built-in, including Explore and Plan) | Delegation, specialized expertise |
 | **9** | [Advanced Features](09-advanced-features/) | ⭐⭐⭐⭐⭐ Advanced | 2-3 hours | Level 3 | All previous | Power user tools | Planning, Auto Mode, Channels, Voice Dictation, permissions |
 | **10** | [Plugins](07-plugins/) | ⭐⭐⭐⭐ Advanced | 2 hours | Level 3 | All previous | Complete solutions | Team onboarding, distribution |
 | **11** | [CLI Mastery](10-cli/) | ⭐⭐⭐ Advanced | 1 hour | Level 3 | Recommended: All | Master command-line usage | Scripting, CI/CD, automation |
@@ -235,8 +235,8 @@ Before starting Level 2, make sure you're comfortable with these Level 1 concept
 
 #### What You'll Achieve
 ✅ Auto-invoke specialized capabilities with YAML frontmatter (including `effort` and `shell` fields)
-✅ Set up event-driven automation across 25 hook events
-✅ Use all 4 hook types (command, http, prompt, agent)
+✅ Set up event-driven automation across 33 hook events
+✅ Use all 5 hook types (command, http, mcp_tool, prompt, agent)
 ✅ Enforce code quality standards
 ✅ Create custom hooks for your workflow
 
@@ -244,7 +244,7 @@ Before starting Level 2, make sure you're comfortable with these Level 1 concept
 
 ```bash
 # Exercise 1: Install a skill
-cp -r 03-skills/code-review ~/.claude/skills/
+cp -r 03-skills/code-review-specialist ~/.claude/skills/
 
 # Exercise 2: Set up hooks
 mkdir -p ~/.claude/hooks
@@ -302,8 +302,7 @@ chmod +x ~/.claude/hooks/pre-tool-check.sh
 
 ```bash
 # Exercise 1: Set up GitHub MCP
-export GITHUB_TOKEN="your_github_token"
-claude mcp add github -- npx -y @modelcontextprotocol/server-github
+claude mcp add --transport http github https://api.githubcopilot.com/mcp/ --header "Authorization: Bearer YOUR_GITHUB_PAT"
 
 # Exercise 2: Test MCP integration
 # In Claude Code: /mcp__github__list_prs
@@ -365,14 +364,14 @@ Before starting Level 3, make sure you're comfortable with these Level 2 concept
 
 #### What You'll Achieve
 ✅ Planning mode for complex features
-✅ Fine-grained permission control with 6 modes (default, acceptEdits, plan, auto, dontAsk, bypassPermissions)
+✅ Fine-grained permission control with 6 modes (manual — formerly default, acceptEdits, plan, auto, dontAsk, bypassPermissions)
 ✅ Extended thinking via Alt+T / Option+T toggle
 ✅ Background task management
 ✅ Auto Memory for learned preferences
 ✅ Auto Mode with background safety classifier
-✅ Channels for structured multi-session workflows
+✅ Channels that push events (CI results, chat messages, webhooks) into a running session
 ✅ Voice Dictation for hands-free interaction
-✅ Remote control, desktop app, and web sessions
+✅ Remote control (generally available — your machine appears as a device card in the Claude app), desktop app, and web sessions
 ✅ Agent Teams for multi-agent collaboration
 
 #### Hands-on Exercises
@@ -381,7 +380,7 @@ Before starting Level 3, make sure you're comfortable with these Level 2 concept
 # Exercise 1: Use planning mode
 /plan Implement user authentication system
 
-# Exercise 2: Try permission modes (6 available: default, acceptEdits, plan, auto, dontAsk, bypassPermissions)
+# Exercise 2: Try permission modes (6 available: manual [formerly default], acceptEdits, plan, auto, dontAsk, bypassPermissions)
 claude --permission-mode plan "analyze this codebase"
 claude --permission-mode acceptEdits "refactor the auth module"
 claude --permission-mode auto "implement the feature"
@@ -401,15 +400,15 @@ claude --permission-mode auto "implement the feature"
 claude --permission-mode auto "implement user settings page"
 
 # Exercise 6: Enable agent teams
-export CLAUDE_AGENT_TEAMS=1
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 # Ask Claude: "Implement feature X using a team approach"
 
 # Exercise 7: Scheduled tasks
 /loop 5m /check-status
-# Or use CronCreate for persistent scheduled tasks
+# Tasks are session-scoped; for persistent scheduling use cloud scheduled tasks (formerly routines, via /schedule) or Desktop scheduled tasks
 
-# Exercise 8: Channels for multi-session workflows
-# Use channels to organize work across sessions
+# Exercise 8: Channels (research preview)
+# A channel is an MCP server that pushes events into your running session
 
 # Exercise 9: Voice Dictation
 # Use voice input for hands-free interaction with Claude Code
@@ -421,9 +420,10 @@ export CLAUDE_AGENT_TEAMS=1
 - [ ] Toggled extended thinking with Alt+T / Option+T
 - [ ] Used auto mode with background safety classifier
 - [ ] Used background tasks for long operations
-- [ ] Explored Channels for multi-session workflows
+- [ ] Explored Channels that push external events into a session
 - [ ] Tried Voice Dictation for hands-free input
 - [ ] Understand Remote Control, Desktop App, and Web sessions
+- [ ] Used `notify_when_idle` on a cross-session `SendMessage` to be told when another session goes idle
 - [ ] Enabled and used Agent Teams for collaborative tasks
 - [ ] Used `/loop` for recurring tasks or scheduled monitoring
 
@@ -452,10 +452,10 @@ export CLAUDE_AGENT_TEAMS=1
 
 ```bash
 # Exercise 1: Install a complete plugin
-# In Claude Code: /plugin install pr-review
+claude --plugin-dir ./07-plugins/pr-review  # from the repo root
 
 # Exercise 2: Print mode for CI/CD
-claude -p "Run all tests and generate report"
+claude -p "Run all tests and generate report" --permission-mode auto
 
 # Exercise 3: JSON output for scripts
 claude -p --output-format json "list all functions"
@@ -543,7 +543,7 @@ This repository includes two interactive skills you can use anytime in Claude Co
 
 1. **Slash commands** (15 min): Copy and test `/optimize` and `/pr`
 2. **Project memory** (15 min): Create CLAUDE.md with your project standards
-3. **Install a skill** (15 min): Set up code-review skill
+3. **Install a skill** (15 min): Set up code-review-specialist skill
 4. **Try them together** (15 min): See how they work in harmony
 
 **Outcome**: Basic productivity boost with commands, memory, and auto-skills
@@ -697,20 +697,21 @@ Use these checklists to track your progress by level. Run `/self-assessment` any
 Once you've completed all milestones:
 
 1. **Create team documentation** - Document your team's Claude Code setup
-2. **Build custom plugins** - Package your team's workflows
-3. **Explore Remote Control** - Control Claude Code sessions programmatically from external tools
-4. **Try Web Sessions** - Use Claude Code through browser-based interfaces for remote development
-5. **Use the Desktop App** - Access Claude Code features through the native desktop application
-6. **Use Auto Mode** - Let Claude work autonomously with a background safety classifier
-7. **Leverage Auto Memory** - Let Claude learn your preferences automatically over time
-8. **Set up Agent Teams** - Coordinate multiple agents on complex, multi-faceted tasks
-9. **Use Channels** - Organize work across structured multi-session workflows
-10. **Try Voice Dictation** - Use hands-free voice input for interaction with Claude Code
-11. **Use Scheduled Tasks** - Automate recurring checks with `/loop` and cron tools
-12. **Contribute examples** - Share with the community
-13. **Mentor others** - Help teammates learn
-14. **Optimize workflows** - Continuously improve based on usage
-15. **Stay updated** - Follow Claude Code releases and new features
+2. **Build custom plugins** - Package your team's workflows, including the newer manifest fields (`workflows`, `channels`, `dependencies`)
+3. **Try `/design`** - Sketch a UI mockup, screen flow, or landing page on a design canvas instead of hand-writing HTML (v2.1.265+)
+4. **Explore Remote Control** - Continue a local Claude Code session from your phone, browser or the Claude app, or start one from your phone via its device card in the Claude app
+5. **Try Web Sessions** - Use Claude Code through browser-based interfaces for remote development
+6. **Use the Desktop App** - Access Claude Code features through the native desktop application
+7. **Use Auto Mode** - Let Claude work autonomously with a background safety classifier
+8. **Leverage Auto Memory** - Let Claude learn your preferences automatically over time
+9. **Set up Agent Teams** - Coordinate multiple agents on complex, multi-faceted tasks
+10. **Use Channels** - Connect an MCP server that pushes events (CI results, chat messages, webhooks) into your running session
+11. **Try Voice Dictation** - Use hands-free voice input for interaction with Claude Code
+12. **Use Scheduled Tasks** - Automate recurring checks with `/loop` and cron tools (session-scoped), or cloud scheduled tasks with `/schedule`
+13. **Contribute examples** - Share with the community
+14. **Mentor others** - Help teammates learn
+15. **Optimize workflows** - Continuously improve based on usage
+16. **Stay updated** - Follow Claude Code releases and new features
 
 ---
 
@@ -738,7 +739,27 @@ Once you've completed all milestones:
 
 ---
 
-**Last Updated**: March 2026
+**Last Updated**: October 26, 2026
+**Claude Code Version**: 2.1.310
+**Sources**:
+- https://code.claude.com/docs/en/overview
+- https://code.claude.com/docs/en/hooks
+- https://code.claude.com/docs/en/permission-modes
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.144
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.145
+- https://code.claude.com/docs/en/model-config
+- https://code.claude.com/docs/en/agent-teams
+- https://code.claude.com/docs/en/mcp
+- https://code.claude.com/docs/en/plugins/install
+- https://code.claude.com/docs/en/channels
+- https://code.claude.com/docs/en/remote-control
+- https://code.claude.com/docs/en/scheduled-tasks
+- https://code.claude.com/docs/en/commands
+- https://code.claude.com/docs/en/sub-agents
+- https://code.claude.com/docs/en/routines#where-the-name-routines-still-appears
+- https://code.claude.com/docs/en/headless#auto-approve-tools
+- https://code.claude.com/docs/en/permission-modes#which-mode-a-non-interactive-run-starts-in
+**Compatible Models**: Claude Fable 5.1, Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
 **Maintained by**: Claude How-To Contributors
 **License**: Educational purposes, free to use and adapt
 

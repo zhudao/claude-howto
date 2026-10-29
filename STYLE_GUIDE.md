@@ -391,6 +391,8 @@ Use Mermaid for all diagrams. Supported types:
 - `sequenceDiagram` — interaction flows
 - `timeline` — chronological sequences
 
+GitHub renders Mermaid natively. The website and the EPUB render the same source with [Pele](https://github.com/obsidianmd/pele), pinned in `scripts/vendor_assets.py`, and the `mermaid-syntax` pre-commit hook validates every block with that same bundle, so a block that passes the hook renders everywhere.
+
 ### Style Conventions
 
 Apply consistent colors using style blocks:
@@ -419,6 +421,8 @@ graph TB
 
 - Use `["Label text"]` for node labels (enables special characters)
 - Use `<br/>` for line breaks within labels
+- Keep labels plain text and write numbered labels as-is (`["1. Load file"]`, no backslash before the period)
+- Don't rely on `%%{init}%%` directives or Mermaid themes: the website applies its own light and dark palette
 - Keep diagrams simple (max 10-12 nodes)
 - Add a brief text description below the diagram for accessibility
 - Use top-to-bottom (`TB`) for hierarchies, left-to-right (`LR`) for workflows
@@ -597,12 +601,13 @@ Lesson READMEs end with a metadata block:
 
 ```markdown
 ---
-**Last Updated**: March 2026
-**Claude Code Version**: 2.1+
-**Compatible Models**: Claude Sonnet 4.6, Claude Opus 4.6, Claude Haiku 4.5
+**Last Updated**: August 25, 2026
+**Claude Code Version**: 2.1.245
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
 ```
 
-- Use month + year format (e.g., "March 2026")
+- Use the version captured by the current sync run, not the value shown here
+- Use month + day + year format (e.g., "May 20, 2026")
 - Update the version when features change
 - List all compatible models
 
@@ -628,3 +633,14 @@ Before submitting content, verify:
 - [ ] Paragraphs are short and focused
 - [ ] Related guides section links to relevant lessons
 - [ ] Commit message follows conventional commits format
+
+---
+
+**Last Updated**: August 25, 2026
+**Claude Code Version**: 2.1.245
+**Sources**:
+- https://code.claude.com/docs/en/overview
+- https://code.claude.com/docs/en/changelog
+- https://code.claude.com/docs/en/model-config
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.154
+**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
