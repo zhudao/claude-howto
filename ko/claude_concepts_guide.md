@@ -570,9 +570,9 @@ Claude Code에는 설치 없이 바로 쓸 수 있는 번들 스킬이 포함되
 | **Debug** | `/debug` | 현재 세션의 디버그 로깅을 켜고 세션 디버그 로그를 읽어 문제를 해결 |
 | **Fewer Permission Prompts** | `/fewer-permission-prompts` | 트랜스크립트를 스캔해 자주 쓰는 읽기 전용 도구에 대한 우선순위별 허용 목록을 제안 |
 | **Loop** | `/loop` | 타이머로 반복 작업 예약 |
-| **Run** | `/run` | 프로젝트 앱을 실행·조작해 변경 사항을 검증(v2.1.145+) |
-| **Run Skill Generator** | `/run-skill-generator` | `/run`과 `/verify`에 앱 빌드·실행·조작 방법을 알려 주는 프로젝트별 스킬을 작성(v2.1.145+) |
-| **Verify** | `/verify` | 변경 사항이 실제로 동작하는지 검증(v2.1.145+). v2.1.215부터 명시적 호출로만 실행 |
+| **Run** | `/run` | 프로젝트 앱을 실행·조작해 변경 사항을 검증 |
+| **Run Skill Generator** | `/run-skill-generator` | `/run`과 `/verify`에 앱 빌드·실행·조작 방법을 알려 주는 프로젝트별 스킬을 작성 |
+| **Verify** | `/verify` | 변경 사항이 실제로 동작하는지 검증. v2.1.215부터 명시적 호출로만 실행 |
 
 이 번들 스킬들은 항상 사용할 수 있으며 설치나 설정이 필요하지 않습니다.
 
@@ -1420,6 +1420,9 @@ Claude Code는 적응형 추론 노력(reasoning effort)을 지원하는 다음 
 
 | 모델 | 컨텍스트 창 | 노력 수준 | 기본 노력 수준(Claude Code) |
 |-------|----------------|---------------|------------------------------|
+| Claude Fable 5.2 | 1M 토큰(네이티브) | `low`, `medium`, `high`, `xhigh`, `max` | `medium` — v2.1.321부터 기본 Fable 모델(Claude Code v2.1.321+ 필요) |
+| Claude Fable 5.1 | 1M 토큰(네이티브) | `low`, `medium`, `high`, `xhigh`, `max` | `high`(Claude Code v2.1.257+ 필요) |
+| Claude Fable 5 | 1M 토큰(네이티브) | `low`, `medium`, `high`, `xhigh`, `max` | `high` |
 | Claude Opus 5.5 | 1M 토큰(네이티브) | `low`, `medium`, `high`, `xhigh`, `max` | `medium` — v2.1.280부터 기본 모델이자 기본 Opus 모델(Claude Code v2.1.280+ 필요) |
 | Claude Sonnet 5.5 | 1M 토큰(네이티브) | `low`, `medium`, `high`, `xhigh`, `max` | `medium` — v2.1.284부터 Anthropic API의 기본 Sonnet 모델(Claude Code v2.1.284+ 필요) |
 | Claude Haiku 5.5 | 1M 토큰(네이티브) | `low`, `medium`, `high`, `xhigh`, `max` | `medium` — v2.1.293부터 Anthropic API의 기본 Haiku 모델(Claude Code v2.1.293+ 필요) |
@@ -1430,7 +1433,7 @@ Claude Code는 적응형 추론 노력(reasoning effort)을 지원하는 다음 
 | Claude Sonnet 4.6 | 1M 토큰 | `low`, `medium`, `high`, `max` | Pro/Max 구독자는 `high`(v2.1.117에서 `medium`에서 상향) |
 | Claude Haiku 4.5 | 200K 토큰 | — (노력 수준 미지원) | — |
 
-> **참고**: `xhigh`는 Opus 5.5, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8, Opus 4.7에서 사용할 수 있습니다. `max`는 Opus 5.5, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8/4.7/4.6, Sonnet 4.6에서 동작합니다(세션 한정). Haiku 4.5는 노력 수준을 지원하지 않습니다.
+> **참고**: `xhigh`는 Fable 모델, Opus 5.5, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8, Opus 4.7에서 사용할 수 있습니다. `max`는 Fable 모델, Opus 5.5, Sonnet 5.5, Haiku 5.5, Opus 5, Sonnet 5, Opus 4.8/4.7/4.6, Sonnet 4.6에서 동작합니다(세션 한정). Haiku 4.5는 노력 수준을 지원하지 않습니다.
 
 > **참고**: v2.1.117에서 Opus 4.7 세션이 네이티브 1M 창 대신 200K 기준으로 `/context`를 계산하던 버그가 수정되었습니다. Opus 4.7에서 실제로 1M 컨텍스트를 사용하려면 v2.1.117 이상으로 업그레이드하세요. Opus 5와 Opus 4.8도 네이티브 1M 토큰 창을 제공합니다.
 
@@ -1472,4 +1475,4 @@ Claude Code는 적응형 추론 노력(reasoning effort)을 지원하는 다음 
 - https://code.claude.com/docs/en/scheduled-tasks
 - https://code.claude.com/docs/en/changelog#2-1-307
 - https://code.claude.com/docs/en/skills#work-on-claude-api-projects
-**호환 모델**: Claude Fable 5.1, Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
+**호환 모델**: Claude Fable 5.2, Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 5.5, Claude Haiku 4.5

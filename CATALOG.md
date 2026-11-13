@@ -90,7 +90,7 @@ Commands are user-invoked shortcuts that execute specific actions.
 | `/stats` | Shortcut alias that opens the stats tab of `/usage` (v2.1.118+) | Review session metrics |
 | `/statusline` | Configure status line | Customize status display |
 | `/stickers` | Order Claude Code stickers | Fun rewards |
-| `/fast` | Toggle fast output mode; applies to **Opus 5.5** (the default since v2.1.280), **Opus 5, and Opus 4.8** (Opus 4.8 fast mode is deprecated as of October 30, 2026 and will be removed on November 30, 2026; migrate to Opus 5.5) | Speed up responses |
+| `/fast` | Toggle fast output mode; applies to **Fable 5.2** (v2.1.321+), **Opus 5.5** (the default since v2.1.280), **Opus 5, and Opus 4.8** (Opus 4.8 fast mode is deprecated as of October 30, 2026 and will be removed on November 30, 2026; migrate to Opus 5.5) | Speed up responses |
 | `/terminal-setup` | Configure terminal integration | Setup terminal features |
 | `/undo` | Alias for `/rewind` (v2.1.108) | Same as `/rewind` |
 | `/upgrade` | Open the upgrade page to switch to a higher plan | Plan upgrades |
@@ -248,7 +248,7 @@ cp -r 03-skills/* ~/.claude/skills/
 | `/artifact-capabilities` | Load the reference for the runtime capabilities a published artifact can use (connectors, file downloads) | Before building an artifact page that uses one |
 | `/artifact-diagramming` *(v2.1.221+)* | Load diagramming guidance for artifacts: when a diagram helps, what to draw, inline SVG legible in light and dark themes | Drawing a diagram in an artifact |
 | `/batch` | Split a large change into 5–30 independent units, each run by a background subagent in its own worktree | Large parallel refactors |
-| `/claude-api [subcommand]` | Build apps with Claude API. Subcommands include `migrate`, `api-version` (update code to a newer API version such as `2026-10-21`, v2.1.307+) and `managed-agents-secure` (compare a Managed Agents agent's settings with Anthropic's security guide; needs the `ant` CLI, v2.1.304+) | API development |
+| `/claude-api [subcommand]` | Build apps with Claude API. Subcommands include `migrate`, `api-version` (update code to a newer API version such as `2026-10-21`, v2.1.307+), `managed-agents-secure` (compare a Managed Agents agent's settings with Anthropic's security guide; needs the `ant` CLI, v2.1.304+) and `latency-optimize` (find where your Claude API code makes people wait and try faster settings against your eval, v2.1.319+) | API development |
 | `/claude-in-chrome [task]` | Carry out a task in your browser (test a page, fill a form, read console logs) via Claude in Chrome. Available when Chrome integration is enabled | Browser tasks |
 | `/dataviz [request]` | Design guidance for charts, graphs, and dashboards: chart form, color by role, palette validation for colorblind safety and contrast | Building a chart or dashboard |
 | `/debug [description]` | Turn on debug logging for the session and troubleshoot from the session debug log | Debugging Claude Code itself |
@@ -259,13 +259,13 @@ cp -r 03-skills/* ~/.claude/skills/
 | `/doctor [prompt-audit [path]]` | Setup checkup that diagnoses installation, settings, extension, and `CLAUDE.md` problems and proposes fixes. Alias: `/checkup` | Troubleshooting your setup |
 | `/fewer-permission-prompts` | Scan transcripts and propose a prioritized allowlist | Reduce repeat permission prompts |
 | `/loop` | Run prompts on interval | Recurring tasks |
-| `/run` *(v2.1.145+)* | Launch this project's app to see a change running | Verifying a change in the real app |
-| `/run-skill-generator` *(v2.1.145+)* | Teach `/run`/`/verify` how to handle a specific project | First-time project setup for `/run` |
+| `/run` | Launch this project's app to see a change running | Verifying a change in the real app |
+| `/run-skill-generator` | Teach `/run`/`/verify` how to handle a specific project | First-time project setup for `/run` |
 | `/code-review [low\|medium\|high\|xhigh\|max\|ultra] [--fix] [--comment] [pr#\|branch\|path]` | Review the current diff — or a PR, branch, or path — for correctness bugs. `--fix` applies findings, `--comment` posts them as inline PR comments. With no level given it reuses the last one you typed (v2.1.223). Lower effort levels moved to a **background subagent** in v2.1.218; `high`, `xhigh`, and `max` followed in v2.1.232, so review output no longer fills the conversation | After writing code, before landing a PR |
 | `/slides [brief]` *(v2.1.265+)* | Make a new presentation as a Claude Slides artifact from your brief. Needs artifacts and the Slides template | Creating a slide deck |
 | `/simplify` *(distinct again since v2.1.154)* | Cleanup-only review (reuse / simplification / efficiency / altitude) that applies the fixes; does not hunt bugs | Tidying code without a bug hunt |
 | `/update-config [request]` | Describe a settings change (allow a command, set an env var, add a hook) and Claude edits the matching `settings.json` | Changing settings without hand-editing JSON |
-| `/verify` *(v2.1.145+)* | Build, run, and observe the app to confirm a fix works | Validating a fix end-to-end |
+| `/verify` | Build, run, and observe the app to confirm a fix works | Validating a fix end-to-end |
 | `/workflow-authoring` *(v2.1.248+)* | Load the reference for writing dynamic workflow scripts (script API, resume, quality patterns). Available when dynamic workflows are enabled | Writing or editing a workflow script |
 
 ---
@@ -592,8 +592,8 @@ chmod +x ~/.claude/hooks/*.sh
 
 ---
 
-**Last Updated**: November 1, 2026
-**Claude Code Version**: 2.1.316
+**Last Updated**: November 12, 2026
+**Claude Code Version**: 2.1.322
 **Sources**:
 - https://code.claude.com/docs/en/sub-agents
 - https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md
@@ -638,4 +638,6 @@ chmod +x ~/.claude/hooks/*.sh
 - https://code.claude.com/docs/en/feature-availability#ultra-plan
 - https://code.claude.com/docs/en/ultrareview#pricing-and-free-runs
 - https://code.claude.com/docs/en/changelog#2-1-316
-**Compatible Models**: Claude Fable 5.1, Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
+- https://code.claude.com/docs/en/changelog#2-1-321
+- https://code.claude.com/docs/en/changelog#2-1-319
+**Compatible Models**: Claude Fable 5.2, Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 5.5, Claude Haiku 4.5

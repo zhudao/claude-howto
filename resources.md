@@ -250,7 +250,7 @@ These steps capture the core recommendations for smooth workflows with Claude Co
 | **Monitor Tool** | Watch a background command's stdout stream and react to events instead of polling (v2.1.98+) | [Advanced Features](09-advanced-features/) |
 | **/goal mode** | Register a session-level completion condition; Claude keeps working until met (v2.1.139+) | [Slash Commands](01-slash-commands/) |
 | **claude agents (Agent View)** | List, inspect, and resume background agents from the terminal; `--json` for machine-readable output (v2.1.139+, `--json` added v2.1.145) | [code.claude.com/docs/en/agent-view](https://code.claude.com/docs/en/agent-view) |
-| **/run, /verify, /run-skill-generator** | Bundled skills to launch your project, confirm a fix works, and generate per-project run/verify skills (v2.1.145+) | [Skills Guide](03-skills/) |
+| **/run, /verify, /run-skill-generator** | Bundled skills to launch your project, confirm a fix works, and generate per-project run/verify skills | [Skills Guide](03-skills/) |
 
 ---
 **Last Updated**: October 26, 2026
@@ -268,4 +268,4 @@ These steps capture the core recommendations for smooth workflows with Claude Co
 - https://code.claude.com/docs/en/code-review
 - https://code.claude.com/docs/en/scheduled-tasks
 - https://code.claude.com/docs/en/permission-modes#available-modes
-**Compatible Models**: Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 4.5
+**Compatible Models**: Claude Fable 5.2, Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 5.5, Claude Haiku 4.5
