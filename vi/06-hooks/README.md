@@ -65,7 +65,7 @@ Hooks được cấu hình trong các file settings với cấu trúc cụ thể
 | `statusMessage` | Thông điệp spinner tùy chỉnh hiển thị khi hook đang chạy | `"Đang định dạng…"` |
 | `onFailure` | Điều gì xảy ra với hành động khi một command hook hoặc HTTP hook thất bại (không khởi động được, hết thời gian, thoát với mã không mong đợi): `"continue"` (mặc định) hoặc `"block"` (v2.1.295+) | `"block"` |
 
-> **Lưu ý**: Một số sự kiện hạ thấp timeout mặc định. `UserPromptSubmit` hạ mặc định của `command`, `http` và `mcp_tool` xuống 30 giây, còn `MessageDisplay` hạ xuống 10 giây. Các hook `SessionEnd` dùng chung ngân sách 1,5 giây; nếu cài đặt của bạn khai báo `timeout` dài hơn cho một hook, Claude Code nâng ngân sách đó cho khớp, tối đa 60 giây.
+> **Lưu ý**: Một số sự kiện hạ thấp timeout mặc định. `UserPromptSubmit` hạ mặc định của `command`, `http` và `mcp_tool` xuống 30 giây, còn `MessageDisplay` hạ xuống 10 giây. Các hook `SessionEnd` dùng chung ngân sách 1,5 giây; nếu cài đặt của bạn khai báo `timeout` dài hơn cho một hook, Claude Code nâng ngân sách đó cho khớp, tối đa 60 giây. Trong các phiên `claude -p` và Agent SDK, Claude Code gửi một heartbeat tiến độ mỗi 30 giây khi hook chạy lâu (v2.1.323), để một host như Claude Desktop không kết thúc lượt vì cho rằng đã bị treo, một khi host đó đã bao gồm phiên bản này.
 
 ### Các Mẫu Matcher / Matcher Patterns
 
@@ -1228,7 +1228,7 @@ if __name__ == "__main__":
 
 ### Ví Dụ 7: Khởi Tạo Quyền Auto-Mode (Script Thiết Lập Một Lần) / Example 7: Seed Auto-Mode Permissions (One-Time Setup Script)
 
-Một script thiết lập chạy một lần, nạp vào `~/.claude/settings.json` các permission rule an toàn tương đương với baseline auto-mode của Claude Code — 37 rule theo mặc định, tối đa 63 khi bật mọi cờ danh mục — mà không cần hook nào, và không ghi nhớ các lựa chọn về sau. Chạy một lần; có thể chạy lại an toàn (bỏ qua các rule đã có).
+Một script thiết lập chạy một lần, nạp vào `~/.claude/settings.json` các permission rule an toàn tương đương với baseline auto-mode của Claude Code — 32 rule theo mặc định, tối đa 58 khi bật mọi cờ danh mục — mà không cần hook nào, và không ghi nhớ các lựa chọn về sau. Chạy một lần; có thể chạy lại an toàn (bỏ qua các rule đã có).
 
 **File:** `09-advanced-features/setup-auto-mode-permissions.py`
 
@@ -1250,7 +1250,7 @@ python3 09-advanced-features/setup-auto-mode-permissions.py
 | Git ghi (local) | `Bash(git add:*)`, `Bash(git commit:*)`, `Bash(git checkout:*)` |
 | Trình quản lý package | `Bash(npm ci:*)`, `Bash(npm install:*)`, `Bash(pip install:*)`, `Bash(pip3 install:*)` |
 | Build & test | `Bash(make:*)`, `Bash(pytest:*)`, `Bash(go test:*)` |
-| Shell thông dụng | `Bash(ls:*)`, `Bash(cat:*)`, `Bash(find:*)` |
+| Shell thông dụng | `Bash(ls:*)`, `Bash(cat:*)`, `Bash(wc:*)` |
 | GitHub CLI | `Bash(gh pr view:*)`, `Bash(gh pr create:*)`, `Bash(gh issue list:*)` |
 
 **Những gì được cố ý loại trừ** (script này không bao giờ thêm):

@@ -113,7 +113,7 @@ my-plugin/
 ├── .mcp.json             # MCP サーバーの設定
 ├── .lsp.json             # コードインテリジェンス用の LSP サーバー設定
 ├── bin/                  # プラグイン有効化中に Bash ツールの PATH に追加される実行ファイル
-├── settings.json         # プラグイン有効化時に適用されるデフォルト設定（有効なのは `agent` と `subagentStatusLine` キーのみ）
+├── settings.json         # プラグイン有効化時に適用されるデフォルト設定（有効なのは `agent` キーのみで、そのキーも v2.1.323 から非推奨）
 ├── themes/               # 任意：Claude Code のカスタムテーマを同梱（v2.1.118 以降）
 ├── templates/
 │   └── issue-template.md
@@ -218,6 +218,8 @@ my-plugin/
 - **コードナビゲーション** — 定義へジャンプ、参照や実装を検索
 - **ホバー情報** — ホバー時に型シグネチャやドキュメントを表示
 - **シンボル一覧** — 現在のファイルやワークスペースのシンボルを閲覧
+
+プラグインの言語サーバーが起動できない場合、`/plugin` の **Errors** タブに失敗とその理由が表示される。さらに v2.1.323 以降、Claude Code はそのサーバー名と確認すべき点を示す警告も表示する。
 
 ## プラグインのオプション（v2.1.83 以降）
 
@@ -325,7 +327,7 @@ my-plugin/
 
 ## プラグインの設定
 
-プラグインはデフォルト設定を提供するために `settings.json` を同梱できる。有効なキーは `agent` と `subagentStatusLine` の 2 つで、それ以外のキーは破棄される。`agent` にはプラグイン内のエージェント名を指定し、そのエージェントをメインスレッドとして実行する：
+プラグインはデフォルト設定を提供するために `settings.json` を同梱できる。有効なのは `agent` キーのみで、それ以外のキーは破棄される。v2.1.323 で `subagentStatusLine` 設定は削除されたため、サブエージェントの行は常にデフォルトの表示になり、このキーがまだ残っている設定ファイルも従来どおり読み込まれる。`agent` にはプラグイン内のエージェント名を指定し、そのエージェントをメインスレッドとして実行する。v2.1.323 以降このキーは非推奨で、引き続き適用されるが、Claude Code は起動時、`claude plugin list`、`claude plugin validate` で警告を出す：
 
 ```json
 {
@@ -365,9 +367,10 @@ my-plugin/
 
 **ファイル：** `commands/review-pr.md`
 
+このファイルは `/pr-review:review-pr` になる：プラグインの `name` とファイル名の組み合わせである。
+
 ```markdown
 ---
-name: Review PR
 description: Start comprehensive PR review with security and testing checks
 ---
 
@@ -400,17 +403,65 @@ Specializes in finding security vulnerabilities:
 - Secure configuration
 ```
 
+**ファイル：** `hooks/hooks.json`
+
+ユーザーがプラグインのコマンドのいずれかを入力したときに `hooks/pre-review.js` を実行する。このスクリプトは git リポジトリの外ではコマンドをブロックする（終了コード 2）。matcher は `command_name` と照合される。プラグインコマンドの場合、Claude Code 2.1.322 ではこれが `pr-review:review-pr` だった。プレフィックスなしの `review-pr` 形式も受け付ける。`args`（exec 形式）はスクリプトのパスを 1 つの引数として渡すため、クォートは不要である：
+
+```json
+{
+  "hooks": {
+    "UserPromptExpansion": [
+      {
+        "matcher": "^(pr-review:)?(review-pr|check-security|check-tests)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/pre-review.js"],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**ファイル：** `.mcp.json`
+
+GitHub 公式の MCP サーバーを読み取り専用で宣言し、トークンは `GITHUB_TOKEN` から取得する。イメージは [v2.1.0 リリース](https://github.com/github/github-mcp-server/releases/tag/v2.1.0) のタグに固定されているため、変わるのはタグを書き換えたときか、公開元がタグを再 push したときだけである。digest で固定するとより厳密になる：`:v2.1.0` を `@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a`（2026-11-12 時点の v2.1.0 の digest）に置き換える。このファイルはタグで固定している：
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e", "GITHUB_READ_ONLY",
+        "ghcr.io/github/github-mcp-server:v2.1.0"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}",
+        "GITHUB_READ_ONLY": "1"
+      }
+    }
+  }
+}
+```
+
 **インストール：**
 
 ```bash
+claude plugin validate ./07-plugins/pr-review
 claude --plugin-dir ./07-plugins/pr-review
 
-# Result:
-# ✅ 3 slash commands installed
-# ✅ 3 subagents configured
-# ✅ 2 MCP servers connected
-# ✅ 4 hooks registered
-# ✅ Ready to use!
+# Loads:
+# ✅ 3 slash commands: /pr-review:review-pr, /pr-review:check-security, /pr-review:check-tests
+# ✅ 3 subagents
+# ✅ 1 MCP server: plugin:pr-review:github
+# ✅ 1 hook: UserPromptExpansion → pre-review.js
 ```
 
 ### 例 2：DevOps プラグイン
@@ -428,9 +479,8 @@ devops-automation/
 │   ├── deployment-specialist.md
 │   ├── incident-commander.md
 │   └── alert-analyzer.md
-├── mcp/
-│   └── kubernetes-config.json
 ├── hooks/
+│   ├── hooks.json        # PreToolUse/PostToolUse on Bash
 │   ├── pre-deploy.js
 │   └── post-deploy.js
 └── scripts/
@@ -438,6 +488,8 @@ devops-automation/
     ├── rollback.sh
     └── health-check.sh
 ```
+
+`hooks/hooks.json` は各 Bash 呼び出しの前に `pre-deploy.js` を、後に `post-deploy.js` を実行する。スクリプトはフックの JSON 入力からコマンドを読み取り、`kubectl apply` や `deploy.sh` などのデプロイ系コマンドにのみ反応する。`kubectl` がクラスタに到達できない場合、`pre-deploy.js` は終了コード 2 で終了してデプロイをブロックする。このプラグインには MCP サーバーがない。フックとスクリプトは `kubectl` を直接呼び出す。
 
 ### 例 3：Documentation プラグイン
 
@@ -454,12 +506,11 @@ documentation/
 │   ├── api-documenter.md
 │   ├── code-commentator.md
 │   └── example-generator.md
-├── mcp/
-│   └── github-docs-config.json
-└── templates/
-    ├── api-endpoint.md
-    ├── function-docs.md
-    └── adr-template.md
+├── templates/
+│   ├── api-endpoint.md
+│   ├── function-docs.md
+│   └── adr-template.md
+└── .mcp.json             # GitHub MCP server
 ```
 
 ## プラグインマーケットプレイス
@@ -866,8 +917,8 @@ Complete PR review workflow with security, testing, and documentation checks.
 ## What's Included
 - 3 slash commands for different review types
 - 3 specialized subagents
-- GitHub and CodeQL MCP integration
-- Automated security scanning hooks
+- GitHub MCP integration
+- A pre-review hook that checks the git repository
 
 ## Installation
 ```bash
@@ -882,16 +933,16 @@ claude --plugin-dir ./07-plugins/pr-review
 ✅ Performance impact analysis
 
 ## Usage
-```bash
-/review-pr
-/check-security
-/check-tests
+```text
+/pr-review:review-pr
+/pr-review:check-security
+/pr-review:check-tests
 ```
 
 ## Requirements
 - Claude Code 2.1+
-- GitHub access
-- CodeQL (optional)
+- Node.js and Docker
+- A GitHub personal access token in `GITHUB_TOKEN`
 ````
 
 ## プラグイン vs 手動設定
@@ -1017,10 +1068,10 @@ claude plugin update plugin-name
 ### PR Review プラグインの全ワークフロー
 
 ```
-1. User: /review-pr
+1. User: /pr-review:review-pr
 
 2. Plugin executes:
-   ├── pre-review.js hook validates git repo
+   ├── pre-review.js hook (UserPromptExpansion) validates git repo
    ├── GitHub MCP fetches PR data
    ├── security-reviewer subagent analyzes security
    ├── test-checker subagent verifies coverage
@@ -1051,7 +1102,7 @@ claude plugin update plugin-name
 - 環境変数が正しく設定されているか確認
 - MCP サーバーのインストール状況と健全性を確認
 - `/mcp` で MCP サーバーの状態を確認
-- `mcp/` ディレクトリ内の MCP 設定を確認
+- プラグインの `.mcp.json` 内の MCP 設定を確認
 
 ### インストール後にコマンドが利用できない
 - プラグインが正しくインストールされているか確認：`/plugin list`

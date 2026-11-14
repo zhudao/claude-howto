@@ -96,6 +96,7 @@ sequenceDiagram
 | `lspServers` | string \| array \| object | سرورهای LSP برای هوشمندی کد — رفتن به تعریف، یافتن ارجاع‌ها، تشخیص‌ها. معمولاً `"./.lsp.json"`. به [پیکربندی سرور LSP](#پیکربندی-سرور-lsp) مراجعه کنید |
 | `channels` | array | اعلان‌های کانال برای تزریق پیام (به سبک Telegram، Slack، Discord) |
 | `dependencies` | array | پلاگین‌های دیگری که این پلاگین به آن‌ها نیاز دارد، به‌صورت اختیاری با محدودیت نسخه semver |
+| `engines` | object | `engines["claude-code"]` بازه نسخه‌های Claude Code را که پلاگین پشتیبانی می‌کند تعیین می‌کند. Claude Code پلاگینی را که بیرون از این بازه باشد نصب، به‌روزرسانی یا بارگذاری نمی‌کند، و نصب و به‌روزرسانی جدیدترین نسخه پلاگین را که در این بازه بگنجد انتخاب می‌کنند (v2.1.323؛ برگرفته از changelog، مرجع مانیفست هنوز آن را فهرست نکرده است) |
 | `keywords` | array | برچسب‌های کشف که هنگام مرور و جستجوی مارکت‌پلیس‌ها استفاده می‌شوند |
 | `metadata` | object | شیء آزاد برای داده‌های خودتان، مانند فیلدهای حق اشتراک یا کاتالوگ |
 | `experimental.themes` | string \| array | فایل‌ها یا پوشه‌های تم رنگی (جایگزین `themes/` پیش‌فرض) |
@@ -125,7 +126,7 @@ my-plugin/
 ├── .mcp.json             # پیکربندی‌های سرور MCP
 ├── .lsp.json             # پیکربندی‌های سرور LSP برای هوشمندی کد
 ├── bin/                  # فایل‌های اجرایی که هنگام فعال بودن پلاگین به PATH ابزار Bash افزوده می‌شوند (فرمان‌های PowerShell بیرون از sandbox نیز آن‌ها را پیدا می‌کنند، v2.1.302)
-├── settings.json         # تنظیمات پیش‌فرضی که هنگام فعال شدن پلاگین اعمال می‌شوند (فقط کلیدهای `agent` و `subagentStatusLine` اثر می‌گذارند)
+├── settings.json         # تنظیمات پیش‌فرضی که هنگام فعال شدن پلاگین اعمال می‌شوند (فقط کلید `agent` اثر می‌گذارد، و همین کلید از v2.1.323 منسوخ شده است)
 ├── themes/               # اختیاری: ارسال تم‌های سفارشی Claude Code (v2.1.118+)
 ├── templates/
 │   └── issue-template.md
@@ -232,6 +233,8 @@ my-plugin/
 - **ناوبری کد** — رفتن به تعریف، یافتن ارجاع‌ها و پیاده‌سازی‌ها
 - **اطلاعات شناور** — امضای نوع و مستندات هنگام نگه داشتن نشانگر
 - **فهرست نمادها** — مرور نمادهای فایل یا فضای کاری جاری
+
+اگر سرور زبان یک پلاگین نتواند راه‌اندازی شود، زبانه **Errors** در `/plugin` خطا را همراه با دلیل آن نشان می‌دهد، و از v2.1.323 Claude Code همچنین هشداری نشان می‌دهد که نام سرور و آنچه باید بررسی شود را می‌گوید.
 
 ### پوشه `bin/` روی `PATH`
 
@@ -377,7 +380,7 @@ $ my-tool --help
 
 ## تنظیمات پلاگین
 
-پلاگین‌ها می‌توانند فایل `settings.json` را برای ارائه پیکربندی پیش‌فرض ارسال کنند. دو کلید اثر می‌گذارند، `agent` و `subagentStatusLine`؛ هر کلید دیگری حذف می‌شود. `agent` نام یکی از ایجنت‌های پلاگین را می‌گیرد و آن را به‌عنوان رشته اصلی اجرا می‌کند:
+پلاگین‌ها می‌توانند فایل `settings.json` را برای ارائه پیکربندی پیش‌فرض ارسال کنند. فقط کلید `agent` اثر می‌گذارد؛ هر کلید دیگری حذف می‌شود. v2.1.323 تنظیم `subagentStatusLine` را حذف کرد، بنابراین سطرهای زیرایجنت همیشه از ظاهر پیش‌فرض استفاده می‌کنند، و فایل تنظیماتی که هنوز این کلید را دارد مثل قبل بارگذاری می‌شود. `agent` نام یکی از ایجنت‌های پلاگین را می‌گیرد و آن را به‌عنوان رشته اصلی اجرا می‌کند. از v2.1.323 این کلید منسوخ (deprecated) شده است: هنوز اعمال می‌شود، اما Claude Code هنگام راه‌اندازی، در `claude plugin list` و در `claude plugin validate` درباره آن هشدار می‌دهد:
 
 ```json
 {
@@ -423,9 +426,10 @@ $ my-tool --help
 
 **فایل:** `commands/review-pr.md`
 
+این فایل به `/pr-review:review-pr` تبدیل می‌شود: `name` پلاگین به‌اضافه نام فایل.
+
 ```markdown
 ---
-name: بازبینی PR
 description: شروع بازبینی جامع PR همراه با بررسی‌های امنیتی و تست
 ---
 
@@ -458,17 +462,65 @@ tools: Read, Grep, Bash
 - پیکربندی امن
 ```
 
+**فایل:** `hooks/hooks.json`
+
+وقتی کاربر یکی از فرمان‌های پلاگین را تایپ می‌کند، `hooks/pre-review.js` را اجرا می‌کند. این اسکریپت فرمان را بیرون از مخزن git مسدود می‌کند (کد خروج 2). matcher روی `command_name` آزموده می‌شود که برای یک فرمان پلاگین در Claude Code 2.1.322 برابر `pr-review:review-pr` بود؛ شکل بدون پیشوند `review-pr` را هم می‌پذیرد. `args` (شکل exec) مسیر اسکریپت را به‌صورت یک آرگومان واحد می‌فرستد، پس نیازی به نقل‌قول‌گذاری نیست:
+
+```json
+{
+  "hooks": {
+    "UserPromptExpansion": [
+      {
+        "matcher": "^(pr-review:)?(review-pr|check-security|check-tests)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/pre-review.js"],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**فایل:** `.mcp.json`
+
+سرور MCP رسمی GitHub را به‌صورت فقط‌خواندنی تعریف می‌کند و توکن را از `GITHUB_TOKEN` می‌گیرد. ایمیج روی تگ [نسخه v2.1.0](https://github.com/github/github-mcp-server/releases/tag/v2.1.0) ثابت شده است، پس فقط وقتی تغییر می‌کند که شما تگ را عوض کنید یا ناشر آن را دوباره push کند. ثابت‌کردن با digest سخت‌گیرانه‌تر است: `:v2.1.0` را با `@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a` جایگزین کنید، که digest نسخه v2.1.0 در تاریخ 2026-11-12 است. این فایل تگ را ثابت می‌کند:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e", "GITHUB_READ_ONLY",
+        "ghcr.io/github/github-mcp-server:v2.1.0"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}",
+        "GITHUB_READ_ONLY": "1"
+      }
+    }
+  }
+}
+```
+
 **نصب:**
 
 ```bash
+claude plugin validate ./07-plugins/pr-review
 claude --plugin-dir ./07-plugins/pr-review
 
-# نتیجه:
-# ✅ ۳ دستور اسلش نصب شد
-# ✅ ۳ زیرایجنت پیکربندی شد
-# ✅ ۲ سرور MCP متصل شد
-# ✅ ۴ هوک ثبت شد
-# ✅ آماده استفاده!
+# Loads:
+# ✅ 3 slash commands: /pr-review:review-pr, /pr-review:check-security, /pr-review:check-tests
+# ✅ 3 subagents
+# ✅ 1 MCP server: plugin:pr-review:github
+# ✅ 1 hook: UserPromptExpansion → pre-review.js
 ```
 
 ### مثال ۲: پلاگین DevOps
@@ -486,9 +538,8 @@ devops-automation/
 │   ├── deployment-specialist.md
 │   ├── incident-commander.md
 │   └── alert-analyzer.md
-├── mcp/
-│   └── kubernetes-config.json
 ├── hooks/
+│   ├── hooks.json        # PreToolUse/PostToolUse on Bash
 │   ├── pre-deploy.js
 │   └── post-deploy.js
 └── scripts/
@@ -496,6 +547,8 @@ devops-automation/
     ├── rollback.sh
     └── health-check.sh
 ```
+
+`hooks/hooks.json` فایل `pre-deploy.js` را پیش از هر فراخوانی Bash و `post-deploy.js` را پس از آن اجرا می‌کند. اسکریپت‌ها فرمان را از ورودی JSON هوک می‌خوانند و فقط روی فرمان‌های استقرار مانند `kubectl apply` یا `deploy.sh` عمل می‌کنند. `pre-deploy.js` وقتی `kubectl` نتواند به کلاستر برسد، با کد خروج 2 استقرار را مسدود می‌کند. این پلاگین سرور MCP ندارد: هوک‌ها و اسکریپت‌ها مستقیماً `kubectl` را فراخوانی می‌کنند.
 
 ### مثال ۳: پلاگین مستندسازی
 
@@ -512,12 +565,11 @@ documentation/
 │   ├── api-documenter.md
 │   ├── code-commentator.md
 │   └── example-generator.md
-├── mcp/
-│   └── github-docs-config.json
-└── templates/
-    ├── api-endpoint.md
-    ├── function-docs.md
-    └── adr-template.md
+├── templates/
+│   ├── api-endpoint.md
+│   ├── function-docs.md
+│   └── adr-template.md
+└── .mcp.json             # GitHub MCP server
 ```
 
 ## مارکت‌پلیس پلاگین
@@ -865,7 +917,7 @@ claude plugin init <name>                    # ساخت اسکلت یک پلاگ
 | `plugin validate` | `--strict` | برخورد با هشدارها به‌عنوان خطا |
 | `plugin validate` | `--json` | تولید گزارش اعتبارسنجی ماشین‌خوان (v2.1.259+) |
 
-`claude plugin validate` همچنین ورودی‌های `.mcp.json` را بررسی می‌کند (v2.1.281+) و زمانی شکست می‌خورد که مسیرهای `outputStyles`، `themes`، `monitors` یا `lspServers` موجود نباشند یا به خارج از پوشه پلاگین اشاره کنند (v2.1.283+). همچنین وقتی README یک پلاگین هیچ خطی برای نصب آن از یک مارکت‌پلیس ندارد، یک بلوک `Advice` همراه با خطی برای چسباندن چاپ می‌کند؛ این توصیه حکم نهایی یا کد خروج را تغییر نمی‌دهد، حتی با `--strict` (v2.1.295+).
+`claude plugin validate` همچنین ورودی‌های `.mcp.json` را بررسی می‌کند (v2.1.281+) و زمانی شکست می‌خورد که مسیرهای `outputStyles`، `themes`، `monitors` یا `lspServers` موجود نباشند یا به خارج از پوشه پلاگین اشاره کنند (v2.1.283+). همچنین وقتی README یک پلاگین هیچ خطی برای نصب آن از یک مارکت‌پلیس ندارد، یک بلوک `Advice` همراه با خطی برای چسباندن چاپ می‌کند؛ این توصیه حکم نهایی یا کد خروج را تغییر نمی‌دهد، حتی با `--strict` (v2.1.295+). از v2.1.323 این فرمان همچنین ماژول هوک‌های TypeScript یک پلاگین را از نظر نوع بررسی می‌کند و هر یافته را به‌عنوان هشدار گزارش می‌دهد، بنابراین `--strict` روی آن شکست می‌خورد؛ اسم‌های `$`ی را که هوک `engine.create` یک ماد اضافه، نگه‌داری یا جایگزین می‌کند فهرست می‌کند؛ و ماد‌ی را که هوک `engine.create` آن به تنها شکل پذیرفته‌شده نوشته نشده باشد رد می‌کند، در حالی که مادهای نصب‌شده همچنان بارگذاری می‌شوند. این سه افزوده برگرفته از changelog هستند؛ مرجع CLI هنوز آن‌ها را فهرست نکرده است.
 
 مثال: `claude plugin tag ./my-plugin` یک **مسیر** به پلاگین می‌گیرد (نه یک رشته نسخه). این فرمان یک برچسب git به شکل `{name}--v{version}` برگرفته از `plugin.json` می‌سازد، بررسی می‌کند که `plugin.json` و هر ورودی مارکت‌پلیس دربرگیرنده با هم توافق دارند، و روش توصیه‌شده برای بریدن انتشارهای پلاگین جهت توزیع است.
 
@@ -901,7 +953,7 @@ claude plugin eval --help     # فهرست کامل گزینه‌ها
 
 ### خروجی ماشین‌خوان با `--json` (v2.1.268+)
 
-`--json` روی `install`، `uninstall`، `update`، `enable` و `disable` پذیرفته می‌شود، که مدیریت پلاگین را در CI قابل اسکریپت‌نویسی می‌کند. هر سطر `claude plugin list --json` همچنین `errorDetails` و `noteDetails` را حمل می‌کند، تا یک پلاگین خراب بدون فرمان دوم خودش را توضیح دهد.
+`--json` روی `install`، `uninstall`، `update`، `enable` و `disable` پذیرفته می‌شود، که مدیریت پلاگین را در CI قابل اسکریپت‌نویسی می‌کند. هر سطر `claude plugin list --json` همچنین `errorDetails` و `noteDetails` را حمل می‌کند، تا یک پلاگین خراب بدون فرمان دوم خودش را توضیح دهد. از v2.1.323، نتیجه `claude plugin install --json` همچنین `unsetOptionCount` را حمل می‌کند: تعداد گزینه‌های `userConfig` که هنوز تنظیم نشده‌اند (برگرفته از changelog؛ بخش JSON result format در مرجع CLI هنوز آن را فهرست نکرده است).
 
 ```bash
 claude plugin install my-plugin@my-marketplace --json
@@ -1143,8 +1195,8 @@ claude --plugin-url https://example.com/releases/my-plugin-0.3.0.zip
 ## آنچه شامل می‌شود
 - ۳ دستور اسلش برای انواع مختلف بازبینی
 - ۳ زیرایجنت تخصصی
-- یکپارچه‌سازی MCP با GitHub و CodeQL
-- هوک‌های پویش خودکار امنیتی
+- یکپارچه‌سازی MCP با GitHub
+- یک هوک پیش از بازبینی که مخزن git را بررسی می‌کند
 
 ## نصب
 ```bash
@@ -1159,16 +1211,16 @@ claude --plugin-dir ./07-plugins/pr-review
 ✅ تحلیل تأثیر عملکرد
 
 ## استفاده
-```bash
-/review-pr
-/check-security
-/check-tests
+```text
+/pr-review:review-pr
+/pr-review:check-security
+/pr-review:check-tests
 ```
 
 ## پیش‌نیازها
 - Claude Code 2.1+
-- دسترسی GitHub
-- CodeQL (اختیاری)
+- Node.js و Docker
+- یک توکن دسترسی شخصی GitHub در `GITHUB_TOKEN`
 ````
 
 ## پلاگین در برابر پیکربندی دستی
@@ -1294,10 +1346,10 @@ claude plugin update plugin-name
 ### گردش کار کامل پلاگین بازبینی PR
 
 ```
-1. کاربر: /review-pr
+1. کاربر: /pr-review:review-pr
 
 2. پلاگین اجرا می‌کند:
-   ├── هوک pre-review.js مخزن git را اعتبارسنجی می‌کند
+   ├── هوک pre-review.js (UserPromptExpansion) مخزن git را اعتبارسنجی می‌کند
    ├── MCP گیت‌هاب داده‌های PR را واکشی می‌کند
    ├── زیرایجنت security-reviewer امنیت را تحلیل می‌کند
    ├── زیرایجنت test-checker پوشش را تأیید می‌کند
@@ -1328,7 +1380,7 @@ claude plugin update plugin-name
 - بررسی کنید متغیرهای محیطی درست تنظیم شده‌اند
 - نصب و سلامت سرور MCP را بررسی کنید
 - وضعیت سرور MCP را با `/mcp` بررسی کنید
-- پیکربندی MCP را در پوشه `mcp/` بررسی کنید
+- پیکربندی MCP را در فایل `.mcp.json` پلاگین بررسی کنید
 
 ### فرمان‌ها پس از نصب در دسترس نیستند
 - مطمئن شوید پلاگین با موفقیت نصب شده است: `/plugin list`
@@ -1358,8 +1410,8 @@ claude plugin update plugin-name
 
 ---
 
-**آخرین به‌روزرسانی**: ۱۲ نوامبر ۲۰۲۶
-**نسخه Claude Code**: 2.1.322
+**آخرین به‌روزرسانی**: ۱۳ نوامبر ۲۰۲۶
+**نسخه Claude Code**: 2.1.323
 **منابع**:
 - https://code.claude.com/docs/en/plugins
 - https://code.claude.com/docs/en/plugins-reference
@@ -1426,4 +1478,6 @@ claude plugin update plugin-name
 - https://code.claude.com/docs/en/plugins/mods/create#ask-claude-for-a-mod
 - https://code.claude.com/docs/en/plugins/mods/create#sessions-where-a-mod-claude-writes-cant-load
 - https://code.claude.com/docs/en/changelog#2-1-321
+- https://code.claude.com/docs/en/changelog#2-1-323
+- https://code.claude.com/docs/en/plugins/troubleshooting#language-server-doesnt-start
 **مدل‌های سازگار**: Claude Fable 5.2، Claude Fable 5.1، Claude Fable 5، Claude Opus 5.5، Claude Opus 5، Claude Sonnet 5.5، Claude Sonnet 5، Claude Sonnet 4.6، Claude Opus 4.8، Claude Haiku 5.5، Claude Haiku 4.5

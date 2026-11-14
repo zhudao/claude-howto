@@ -96,6 +96,7 @@ Ngoài các trường định danh đó, manifest còn có thể chỉ cho Claud
 | `lspServers` | string \| array \| object | LSP servers cho code intelligence — đi đến định nghĩa, tìm tham chiếu, chẩn đoán. Thường là `"./.lsp.json"`. Xem [Cấu hình LSP server](#cấu-hình-lsp-server--lsp-server-configuration) |
 | `channels` | array | Khai báo channel để chèn tin nhắn (kiểu Telegram, Slack, Discord) |
 | `dependencies` | array | Các plugin khác mà plugin này cần, có thể kèm ràng buộc phiên bản semver |
+| `engines` | object | `engines["claude-code"]` nêu khoảng phiên bản Claude Code mà plugin hỗ trợ. Claude Code không cài đặt, cập nhật hay tải một plugin nằm ngoài khoảng đó, và lệnh cài đặt và cập nhật chọn phiên bản plugin mới nhất phù hợp (v2.1.323; lấy từ changelog, manifest reference chưa liệt kê field này) |
 | `keywords` | array | Các tag khám phá dùng khi duyệt và tìm kiếm marketplace |
 | `metadata` | object | Object tự do cho dữ liệu riêng của bạn, ví dụ các trường entitlement hoặc catalog |
 | `experimental.themes` | string \| array | Các file hoặc thư mục theme màu (thay thế thư mục mặc định `themes/`) |
@@ -125,7 +126,7 @@ my-plugin/
 ├── .mcp.json             # Cấu hình MCP server
 ├── .lsp.json             # Cấu hình LSP server cho code intelligence
 ├── bin/                  # Các file thực thi được thêm vào PATH của công cụ Bash khi plugin được bật (lệnh PowerShell không sandbox cũng tìm thấy, v2.1.302)
-├── settings.json         # Cài đặt mặc định áp dụng khi plugin được bật (chỉ các key `agent` và `subagentStatusLine` có hiệu lực)
+├── settings.json         # Cài đặt mặc định áp dụng khi plugin được bật (chỉ key `agent` có hiệu lực, và key đó bị deprecated từ v2.1.323)
 ├── themes/               # Tùy chọn: kèm các theme Claude Code tùy chỉnh (v2.1.118+)
 ├── templates/
 │   └── issue-template.md
@@ -232,6 +233,8 @@ Khi được cấu hình, LSP servers cung cấp:
 - **Điều hướng code** — đi đến định nghĩa, tìm tham chiếu, implementations
 - **Thông tin hover** — chữ ký kiểu và tài liệu khi hover
 - **Liệt kê ký hiệu** — duyệt các ký hiệu trong file hoặc workspace hiện tại
+
+Nếu language server của một plugin không khởi động được, tab **Errors** của `/plugin` hiển thị lỗi kèm lý do, và từ v2.1.323 Claude Code còn hiển thị một cảnh báo nêu tên server và những gì cần kiểm tra.
 
 ### Thư mục `bin/` trên `PATH` / `bin/` directory on `PATH`
 
@@ -377,7 +380,7 @@ Mod là một plugin thay đổi giao diện và hành vi của Claude Code. Cod
 
 ## Cài Đặt Plugin / Plugin Settings
 
-Plugins có thể kèm một file `settings.json` để cung cấp cấu hình mặc định. Hai key có hiệu lực là `agent` và `subagentStatusLine`; mọi key khác bị bỏ qua. `agent` nhận tên của một agent trong plugin và chạy nó làm luồng chính:
+Plugins có thể kèm một file `settings.json` để cung cấp cấu hình mặc định. Chỉ key `agent` có hiệu lực; mọi key khác bị bỏ qua. v2.1.323 đã gỡ bỏ setting `subagentStatusLine`, nên các dòng subagent luôn dùng giao diện mặc định, và một file settings vẫn còn chứa key này vẫn được tải như trước. `agent` nhận tên của một agent trong plugin và chạy nó làm luồng chính. Từ v2.1.323, key này bị deprecated: nó vẫn có hiệu lực, nhưng Claude Code cảnh báo về nó khi khởi động, trong `claude plugin list` và trong `claude plugin validate`:
 
 ```json
 {
@@ -423,9 +426,10 @@ Sử dụng **lệnh slash standalone** cho workflows cá nhân nhanh. Sử dụ
 
 **File:** `commands/review-pr.md`
 
+File này trở thành `/pr-review:review-pr`: `name` của plugin cộng với tên file.
+
 ```markdown
 ---
-name: Review PR
 description: Start comprehensive PR review with security and testing checks
 ---
 
@@ -458,17 +462,65 @@ Chuyên tìm các lỗ hổng bảo mật:
 - Cấu hình bảo mật
 ```
 
+**File:** `hooks/hooks.json`
+
+Chạy `hooks/pre-review.js` khi người dùng gõ một trong các lệnh của plugin. Script chặn lệnh khi chạy bên ngoài một git repository (exit code 2). Matcher được so với `command_name`, mà với một lệnh plugin là `pr-review:review-pr` trên Claude Code 2.1.322; matcher cũng chấp nhận dạng rút gọn `review-pr`. `args` (dạng exec) truyền đường dẫn script thành một đối số duy nhất, nên không cần đặt dấu nháy:
+
+```json
+{
+  "hooks": {
+    "UserPromptExpansion": [
+      {
+        "matcher": "^(pr-review:)?(review-pr|check-security|check-tests)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/pre-review.js"],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**File:** `.mcp.json`
+
+Khai báo MCP server chính thức của GitHub, ở chế độ chỉ đọc, với token lấy từ `GITHUB_TOKEN`. Image được ghim ở tag [bản phát hành v2.1.0](https://github.com/github/github-mcp-server/releases/tag/v2.1.0), nên nó chỉ thay đổi khi bạn sửa tag hoặc nhà phát hành push lại tag đó. Ghim theo digest thì chặt chẽ hơn: thay `:v2.1.0` bằng `@sha256:f6056fc10bfffcc8c81a6417a2e9ca12808647e8dd6049642a4feaadee0e0f8a`, digest của v2.1.0 vào ngày 2026-11-12. File này ghim theo tag:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "-e", "GITHUB_READ_ONLY",
+        "ghcr.io/github/github-mcp-server:v2.1.0"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}",
+        "GITHUB_READ_ONLY": "1"
+      }
+    }
+  }
+}
+```
+
 **Cài Đặt:**
 
 ```bash
+claude plugin validate ./07-plugins/pr-review
 claude --plugin-dir ./07-plugins/pr-review
 
-# Kết quả:
-# ✅ 3 slash commands installed
-# ✅ 3 subagents configured
-# ✅ 2 MCP servers connected
-# ✅ 4 hooks registered
-# ✅ Ready to use!
+# Loads:
+# ✅ 3 slash commands: /pr-review:review-pr, /pr-review:check-security, /pr-review:check-tests
+# ✅ 3 subagents
+# ✅ 1 MCP server: plugin:pr-review:github
+# ✅ 1 hook: UserPromptExpansion → pre-review.js
 ```
 
 ### Ví Dụ 2: Plugin DevOps / Example 2: DevOps Plugin
@@ -486,9 +538,8 @@ devops-automation/
 │   ├── deployment-specialist.md
 │   ├── incident-commander.md
 │   └── alert-analyzer.md
-├── mcp/
-│   └── kubernetes-config.json
 ├── hooks/
+│   ├── hooks.json        # PreToolUse/PostToolUse on Bash
 │   ├── pre-deploy.js
 │   └── post-deploy.js
 └── scripts/
@@ -496,6 +547,8 @@ devops-automation/
     ├── rollback.sh
     └── health-check.sh
 ```
+
+`hooks/hooks.json` chạy `pre-deploy.js` trước và `post-deploy.js` sau mỗi lần gọi Bash. Các script đọc lệnh từ JSON input của hook và chỉ tác động lên các lệnh triển khai như `kubectl apply` hoặc `deploy.sh`. `pre-deploy.js` exit 2 để chặn một lần triển khai khi `kubectl` không kết nối được cluster. Plugin không có MCP server: các hook và script gọi trực tiếp `kubectl`.
 
 ### Ví Dụ 3: Plugin Tài Liệu / Example 3: Documentation Plugin
 
@@ -512,12 +565,11 @@ documentation/
 │   ├── api-documenter.md
 │   ├── code-commentator.md
 │   └── example-generator.md
-├── mcp/
-│   └── github-docs-config.json
-└── templates/
-    ├── api-endpoint.md
-    ├── function-docs.md
-    └── adr-template.md
+├── templates/
+│   ├── api-endpoint.md
+│   ├── function-docs.md
+│   └── adr-template.md
+└── .mcp.json             # GitHub MCP server
 ```
 
 ## Marketplace Plugin / Plugin Marketplace
@@ -865,7 +917,7 @@ claude plugin init <name>                    # Tạo khung plugin mới (bí dan
 | `plugin validate` | `--strict` | Coi cảnh báo là lỗi |
 | `plugin validate` | `--json` | Xuất báo cáo xác thực dạng máy đọc được (v2.1.259+) |
 
-`claude plugin validate` cũng kiểm tra các mục `.mcp.json` (v2.1.281+) và báo lỗi khi các đường dẫn `outputStyles`, `themes`, `monitors`, hoặc `lspServers` bị thiếu hoặc trỏ ra ngoài thư mục plugin (v2.1.283+). Nó cũng in ra một khối `Advice`, kèm một dòng để dán vào, khi README của plugin không có dòng nào cài plugin đó từ một marketplace; lời khuyên này không thay đổi kết luận hay mã thoát, kể cả với `--strict` (v2.1.295+).
+`claude plugin validate` cũng kiểm tra các mục `.mcp.json` (v2.1.281+) và báo lỗi khi các đường dẫn `outputStyles`, `themes`, `monitors`, hoặc `lspServers` bị thiếu hoặc trỏ ra ngoài thư mục plugin (v2.1.283+). Nó cũng in ra một khối `Advice`, kèm một dòng để dán vào, khi README của plugin không có dòng nào cài plugin đó từ một marketplace; lời khuyên này không thay đổi kết luận hay mã thoát, kể cả với `--strict` (v2.1.295+). Từ v2.1.323, lệnh này còn kiểm tra kiểu (type-check) module hooks TypeScript của plugin và báo mỗi phát hiện dưới dạng cảnh báo, nên `--strict` sẽ thất bại vì nó; liệt kê các danh từ `$` mà hook `engine.create` của một mod thêm vào, giữ lại hoặc thay thế; và báo lỗi một mod có hook `engine.create` không được viết theo dạng duy nhất được chấp nhận, trong khi các mod đã cài vẫn tiếp tục được tải. Ba bổ sung này lấy từ changelog; CLI reference chưa liệt kê chúng.
 
 Ví dụ: `claude plugin tag ./my-plugin` nhận một **đường dẫn** đến plugin (không phải chuỗi phiên bản). Nó tạo git tag `{name}--v{version}` lấy từ `plugin.json`, kiểm tra rằng `plugin.json` và mục marketplace bao quanh (nếu có) khớp nhau, và là cách được khuyến nghị để cắt bản release plugin để phân phối.
 
@@ -901,7 +953,7 @@ claude plugin eval --help     # Danh sách tùy chọn đầy đủ
 
 ### Output dạng máy đọc với `--json` / Machine-readable output with `--json` (v2.1.268+)
 
-`--json` được chấp nhận trên `install`, `uninstall`, `update`, `enable`, và `disable`, giúp việc quản lý plugin có thể viết script trong CI. Mỗi dòng của `claude plugin list --json` cũng mang `errorDetails` và `noteDetails`, nên một plugin bị lỗi tự giải thích mà không cần lệnh thứ hai.
+`--json` được chấp nhận trên `install`, `uninstall`, `update`, `enable`, và `disable`, giúp việc quản lý plugin có thể viết script trong CI. Mỗi dòng của `claude plugin list --json` cũng mang `errorDetails` và `noteDetails`, nên một plugin bị lỗi tự giải thích mà không cần lệnh thứ hai. Từ v2.1.323, kết quả của `claude plugin install --json` còn mang `unsetOptionCount`: số tùy chọn `userConfig` chưa được đặt (lấy từ changelog; phần JSON result format của CLI reference chưa liệt kê field này).
 
 ```bash
 claude plugin install my-plugin@my-marketplace --json
@@ -1143,8 +1195,8 @@ Workflow PR review hoàn chỉnh với các kiểm tra bảo mật, testing, và
 ## Những Gì Được Bao Gồm
 - 3 lệnh slash cho các loại review khác nhau
 - 3 tác nhân con chuyên biệt
-- Tích hợp GitHub và CodeQL MCP
-- Các hook quét bảo mật tự động
+- Tích hợp GitHub MCP
+- Một hook pre-review kiểm tra git repository
 
 ## Cài Đặt
 ```bash
@@ -1159,16 +1211,16 @@ claude --plugin-dir ./07-plugins/pr-review
 ✅ Phân tích tác động hiệu suất
 
 ## Sử Dụng
-```bash
-/review-pr
-/check-security
-/check-tests
+```text
+/pr-review:review-pr
+/pr-review:check-security
+/pr-review:check-tests
 ```
 
 ## Yêu Cầu
 - Claude Code 2.1+
-- Truy cập GitHub
-- CodeQL (tùy chọn)
+- Node.js và Docker
+- Một GitHub personal access token trong `GITHUB_TOKEN`
 ````
 
 ## Plugin vs Cấu Hình Thủ Công / Plugin vs Manual Configuration
@@ -1294,10 +1346,10 @@ Các tính năng Claude Code sau hoạt động cùng với plugins:
 ### Workflow Đầy Đủ Của Plugin PR Review / PR Review Plugin Full Workflow
 
 ```
-1. User: /review-pr
+1. User: /pr-review:review-pr
 
 2. Plugin executes:
-   ├── pre-review.js hook validates git repo
+   ├── pre-review.js hook (UserPromptExpansion) validates git repo
    ├── GitHub MCP fetches PR data
    ├── security-reviewer subagent analyzes security
    ├── test-checker subagent verifies coverage
@@ -1328,7 +1380,7 @@ Các tính năng Claude Code sau hoạt động cùng với plugins:
 - Xác minh các biến môi trường được đặt đúng
 - Kiểm tra cài đặt và tình trạng của MCP server
 - Kiểm tra trạng thái MCP server bằng `/mcp`
-- Kiểm tra cấu hình MCP trong thư mục `mcp/`
+- Kiểm tra cấu hình MCP trong file `.mcp.json` của plugin
 
 ### Lệnh Không Có Sẵn Sau Khi Cài / Commands Not Available After Install
 - Đảm bảo plugin được cài đặt thành công: `/plugin list`
@@ -1358,8 +1410,8 @@ Nếu `claude plugin list` hiển thị `Version: unknown` cho một plugin lấ
 
 ---
 
-**Cập Nhật Lần Cuối**: Ngày 12 tháng 11 năm 2026
-**Phiên Bản Claude Code**: 2.1.322
+**Cập Nhật Lần Cuối**: Ngày 13 tháng 11 năm 2026
+**Phiên Bản Claude Code**: 2.1.323
 **Nguồn**:
 - https://code.claude.com/docs/en/plugins
 - https://code.claude.com/docs/en/plugins-reference
@@ -1426,4 +1478,6 @@ Nếu `claude plugin list` hiển thị `Version: unknown` cho một plugin lấ
 - https://code.claude.com/docs/en/plugins/mods/create#ask-claude-for-a-mod
 - https://code.claude.com/docs/en/plugins/mods/create#sessions-where-a-mod-claude-writes-cant-load
 - https://code.claude.com/docs/en/changelog#2-1-321
+- https://code.claude.com/docs/en/changelog#2-1-323
+- https://code.claude.com/docs/en/plugins/troubleshooting#language-server-doesnt-start
 **Các Mô Hình Tương Thích**: Claude Fable 5.2, Claude Fable 5.1, Claude Fable 5, Claude Opus 5.5, Claude Opus 5, Claude Sonnet 5.5, Claude Sonnet 5, Claude Sonnet 4.6, Claude Opus 4.8, Claude Haiku 5.5, Claude Haiku 4.5
